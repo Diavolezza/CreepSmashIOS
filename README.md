@@ -1,6 +1,6 @@
 # CreepSmash for iOS
 
-A remake of the multiplayer tower defense game **CreepSmash** as an iPhone/iPad app in Swift. The original Java version was written in the summer semester of 2008 by ten computer science students in the course *Informatikprojekt 2* at HFT Stuttgart (University of Applied Sciences), supervised by Prof. Dr.-Ing. Gerhard Wanner.
+A remake of the multiplayer tower defense game **CreepSmash** as an iPhone/iPad/Mac app in Swift. The original Java version was written in the summer semester of 2008 by ten computer science students in the course *Informatikprojekt 2* at HFT Stuttgart (University of Applied Sciences), supervised by Prof. Dr.-Ing. Gerhard Wanner.
 
 Two players, landscape: your own board and your opponent's board side by side. Spend your credits on towers to defend, or send creeps to your opponent – every creep you send raises your income for good.
 

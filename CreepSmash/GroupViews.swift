@@ -136,14 +136,16 @@ struct OpponentChips: View {
             ForEach(controller.hud.opponents) { info in
                 let shown = controller.shownOpponent == info.id
                 Button { controller.view(opponent: info.id) } label: {
-                    HStack(spacing: Theme.s(3)) {
-                        if info.isTarget { Image(systemName: "arrowtriangle.right.fill").imageScale(.small) }
-                        Text(info.name).lineLimit(1).minimumScaleFactor(0.6)
-                        Text(info.isDead ? L("Out") : "♥\(info.lives)").foregroundStyle(info.lives <= 5 ? Theme.warning : .gray)
+                    // Name, lives and income where they fit; the target (gold anyway) then drops its
+                    // arrow first, the income only after that.
+                    ViewThatFits(in: .horizontal) {
+                        chip(info, arrow: info.isTarget, income: true)
+                        chip(info, arrow: false, income: true)
+                        chip(info, arrow: info.isTarget, income: false)
                     }
                     .font(Theme.mono(12, .semibold))
                     .foregroundStyle(info.isTarget ? Theme.gold : Theme.text)
-                    .padding(.horizontal, Theme.s(4))
+                    .padding(.horizontal, Theme.s(2))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(RoundedRectangle(cornerRadius: Theme.s(6)).fill(shown ? Color(white: 0.16) : Color.black))
                     .overlay(RoundedRectangle(cornerRadius: Theme.s(6))
@@ -153,6 +155,20 @@ struct OpponentChips: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    private func chip(_ info: GameController.OpponentInfo, arrow: Bool, income: Bool) -> some View {
+        HStack(spacing: Theme.s(4)) {
+            if arrow { Image(systemName: "arrowtriangle.right.fill").imageScale(.small) }
+            Text(info.name).lineLimit(1)
+            if info.isDead {
+                Text(L("Out")).foregroundStyle(Theme.warning)
+            } else {
+                Text("♥\(info.lives)").foregroundStyle(info.lives <= 5 ? Theme.warning : .gray)
+                if income { Text("↗+" + Format.compact(info.income)).foregroundStyle(.gray) }
+            }
+        }
+        .fixedSize()
     }
 }
 

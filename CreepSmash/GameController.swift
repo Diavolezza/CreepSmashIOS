@@ -266,6 +266,7 @@ final class GameController {
             }
         }
         effects.add(events: events, game: game, now: now)
+        effects.track(game: game, now: now)
         SoundManager.shared.handle(events, game: game, me: me)
     }
 

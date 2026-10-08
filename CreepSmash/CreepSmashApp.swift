@@ -105,7 +105,7 @@ struct RootView: View {
         controller?.stop()
         let map = GameMap.named(mapID) ?? .blue
         let count = min(3, max(1, opponents))
-        let names = count == 1 ? ["Computer · " + level.label] : (1...count).map { "CPU \($0)" }
+        let names = count == 1 ? ["Computer · " + level.label] : (1...count).map { "CPU\($0)" }
         let match = LocalMatch(map: map, playerName: displayName, opponents: Array(repeating: level, count: count),
                                opponentNames: names)
         // Demo games (autopilot) do not count for statistics and achievements.

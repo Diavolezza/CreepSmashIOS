@@ -69,9 +69,25 @@ final class EffectStore {
         aims[TowerKey(player: player, tower: tower)]?.angle(at: now) ?? 0
     }
 
+    /// Every tick: each tower turns towards the creep it would shoot at next, so the barrel already
+    /// points there when it fires (above all the slow towers like Ultimate). Display only.
+    func track(game: Game, now: CFTimeInterval) {
+        for p in game.players.indices where !game.players[p].isDead {
+            let creeps = game.players[p].creeps
+            for tower in game.players[p].towers {
+                guard let id = game.previewTarget(player: p, towerId: tower.id),
+                      let creep = creeps.first(where: { $0.id == id }) else { continue }
+                let c = Board.center(of: tower.cell)
+                turn(player: p, tower: tower.id, from: Self.point(c.x, c.y), to: Self.point(creep.x, creep.y), now: now)
+            }
+        }
+    }
+
     private func turn(player: Int, tower: Int, from center: CGPoint, to target: CGPoint, now: CFTimeInterval) {
         let key = TowerKey(player: player, tower: tower)
         let angle = atan2(Double(target.x - center.x), Double(center.y - target.y))
+        // Hardly any change (the same creep a tick later): keep the running turn.
+        if let aim = aims[key], abs(remainder(aim.to - angle, 2 * .pi)) < 0.02 { return }
         aims[key] = Aim(from: aims[key]?.angle(at: now) ?? 0, to: angle, start: now)
     }
 

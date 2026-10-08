@@ -5,12 +5,16 @@ import CreepSmashCore
 struct HallOfFameView: View {
     @Environment(\.dismiss) private var dismiss
     // Launch argument "-recordsTab statistics|achievements" opens another tab (screenshots).
-    @State private var tab = Tab(rawValue: UserDefaults.standard.string(forKey: "recordsTab") ?? "") ?? .leaderboard
+    @State private var tab: Tab
     @State private var level: Bot.Level = .normal
     @State private var showLastGame = false
     private var record: PlayerRecord { ProgressStore.shared.record }
 
     enum Tab: String, CaseIterable { case leaderboard, statistics, achievements }
+
+    init(tab: Tab? = nil) {
+        _tab = State(initialValue: tab ?? Tab(rawValue: UserDefaults.standard.string(forKey: "recordsTab") ?? "") ?? .leaderboard)
+    }
 
     var body: some View {
         NavigationStack {

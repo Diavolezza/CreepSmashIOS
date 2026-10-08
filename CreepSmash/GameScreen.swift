@@ -8,6 +8,7 @@ struct GameScreen: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var showOptions = false
     @State private var showReport = false
+    @State private var showRecords = false
 
     var body: some View {
         GeometryReader { geo in
@@ -33,6 +34,7 @@ struct GameScreen: View {
         .overlay { if case let .finished(rank) = controller.hud.phase { finishedOverlay(rank: rank) } }
         .overlay { if let problem = controller.connectionProblem { problemOverlay(problem) } }
         .sheet(isPresented: $showOptions) { OptionsView() }
+        .sheet(isPresented: $showRecords) { HallOfFameView(tab: .statistics) }
         .sheet(isPresented: $showReport) {
             if let summary = controller.summary {
                 GameReportView(summary: summary, myName: controller.hud.myName)
@@ -449,6 +451,9 @@ struct GameScreen: View {
                         Button(L("Evaluation")) { showReport = true }
                             .buttonStyle(MenuButtonStyle(color: Theme.gold, fill: true))
                     }
+                    // The overall statistics as a sheet over the result; closing it returns here.
+                    Button(L("Records")) { showRecords = true }
+                        .buttonStyle(MenuButtonStyle(color: Theme.gold, fill: true))
                     Button(L("Back to menu")) { leave() }.buttonStyle(MenuButtonStyle(color: Theme.text, fill: true))
                 }
                 .fixedSize(horizontal: true, vertical: false)

@@ -314,6 +314,13 @@ public final class Game {
         return true
     }
 
+    /// The creep a tower would shoot at now, without changing anything (for the display: the barrel
+    /// turns towards it before the shot).
+    public func previewTarget(player p: Int, towerId: Int) -> Int? {
+        guard var tower = players[p].tower(id: towerId), let index = findTarget(p, tower: &tower) else { return nil }
+        return players[p].creeps[index].id
+    }
+
     private func findTarget(_ p: Int, tower: inout Tower) -> Int? {
         let creeps = players[p].creeps
         let center = Board.center(of: tower.cell)
