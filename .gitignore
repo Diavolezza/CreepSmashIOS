@@ -1,0 +1,8 @@
+.DS_Store
+build/
+build.log
+xcuserdata/
+*.xcuserstate
+.swiftpm/
+CreepSmashCore/.build/
+DerivedData/
