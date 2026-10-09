@@ -59,7 +59,7 @@ struct GameReportView: View {
                                         value: { $0.lives }, legacy: { s, mine in mine ? s.myLives : s.opponentLives })
                             // Totals so far (recorded since this version): attack and defense.
                             if summary.samples.last?.myHealthSent != nil {
-                                CourseChart(title: L("Health sent"), symbol: "arrow.up.forward.circle.fill",
+                                CourseChart(title: L("Attack strength"), symbol: "arrow.up.forward.circle.fill",
                                             summary: summary, series: series, value: { $0.healthSent },
                                             legacy: { s, mine in mine ? s.myHealthSent : s.opponentHealthSent })
                                 CourseChart(title: L("Damage by towers"), symbol: "scope",
@@ -103,7 +103,7 @@ struct GameReportView: View {
             ("scope", L("Creeps shot down"), Format.credits(summary.creepsKilled)),
             ("building.2.fill", L("Towers built"), Format.credits(summary.towersBuilt)),
             ("heart.slash.fill", L("Lives lost"), "\(summary.livesLost)"),
-        ] + (summary.healthSent.map { [("arrow.up.forward.circle.fill", L("Health sent"), Format.short($0))] } ?? [])
+        ] + (summary.healthSent.map { [("arrow.up.forward.circle.fill", L("Attack strength"), Format.short($0))] } ?? [])
           + (summary.damageDealt.map { [("scope", L("Damage by towers"), Format.short($0))] } ?? [])
         // Six tiles (four in older records): all in one row, in two rows or in two columns –
         // never a single tile left over.

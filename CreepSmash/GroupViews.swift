@@ -164,7 +164,7 @@ struct OpponentChips: View {
             if info.isDead {
                 Text(L("Out")).foregroundStyle(Theme.warning)
             } else {
-                Text("♥\(info.lives)").foregroundStyle(info.lives <= 5 ? Theme.warning : .gray)
+                Text(verbatim: "♥\(info.lives)").foregroundStyle(info.lives <= 5 ? Theme.warning : .gray)
                 if income { Text("↗+" + Format.compact(info.income)).foregroundStyle(.gray) }
             }
         }

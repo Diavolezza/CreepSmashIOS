@@ -128,6 +128,12 @@ final class GameController {
         }
     }
 
+    /// Out of a game against the computer: the remaining computers are not played on in the background
+    /// (online the game has to go on for the others).
+    private var isOutOfLocalGame: Bool {
+        network == nil && game.players[me].isDead
+    }
+
     /// Pause on/off; in an online game for both players.
     func setPaused(_ paused: Bool) {
         guard paused != isPaused || pausedByOpponent else { return }
@@ -194,7 +200,7 @@ final class GameController {
 
     private func frame(timestamp: CFTimeInterval) {
         defer { lastTimestamp = timestamp }
-        guard let last = lastTimestamp, !isPaused, !game.isFinished else { return }
+        guard let last = lastTimestamp, !isPaused, !game.isFinished, !isOutOfLocalGame else { return }
         accumulator += min(timestamp - last, 0.25)
         var steps = 0
         while accumulator >= tickDuration && steps < 5 {

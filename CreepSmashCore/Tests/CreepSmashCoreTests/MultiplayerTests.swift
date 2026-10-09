@@ -55,4 +55,15 @@ final class MultiplayerTests: XCTestCase {
         XCTAssertTrue(match.game.isFinished)
         XCTAssertEqual(match.game.players.compactMap(\.rank).sorted(), [1, 2, 3, 4])
     }
+
+    func testComputerOpponentsGetDifferentStyles() {
+        let styles = Bot.Style.varied(count: 3, seed: 42)
+        XCTAssertEqual(Set(styles.compactMap(\.favorite)).count, 3, "every opponent likes another tower")
+        XCTAssertEqual(styles, Bot.Style.varied(count: 3, seed: 42), "the same seed gives the same styles")
+        // Two styled bots on the same map build differently within the first minute.
+        let match = LocalMatch(map: .neon, playerName: "Me", opponents: [.normal, .normal, .normal], seed: 7)
+        while match.game.tick < 1_400 { match.advance() }
+        let layouts = (1...3).map { p in Set(match.game.players[p].towers.map { "\($0.kind.rawValue)@\($0.cell.x),\($0.cell.y)" }) }
+        XCTAssertGreaterThan(Set(layouts).count, 1, "the computers do not all build the same")
+    }
 }

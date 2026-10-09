@@ -71,8 +71,47 @@ public struct Bot: Sendable {
         }
     }
 
+    /// Playing style: makes computer opponents differ from each other – where they build, which towers
+    /// they like, how much they put into attacks, how they time their decisions. `.standard` is the
+    /// neutral style (used by the tests, so their games stay reproducible).
+    public struct Style: Sendable, Equatable {
+        /// Tower line the bot likes best (nil: none).
+        public var favorite: TowerKind?
+        /// Where along the path it prefers to build: negative near the entry, positive near the exit.
+        public var pathBias: Int
+        /// How many of the best free cells it chooses from (1 = always the best one).
+        public var cellChoice: Int
+        /// Shift of the share of money that goes into attacks, in percentage points.
+        public var economyShift: Int
+        /// When two waves get equally many creeps through: the swarm of cheaper creeps (true) or the
+        /// stronger, more expensive one (false).
+        public var likesSwarms: Bool
+        /// Seed of the bot's own random numbers (cell choice, timing).
+        public var seed: UInt64
+
+        public static let standard = Style(favorite: nil, pathBias: 0, cellChoice: 1, economyShift: 0,
+                                           likesSwarms: false, seed: 0)
+
+        /// Different styles for the computer opponents of one game; every opponent gets another favorite tower.
+        public static func varied(count: Int, seed: UInt64) -> [Style] {
+            var rng = SplitMix(seed: seed)
+            var favorites: [TowerKind] = [.basic, .slow, .splash, .speed]
+            favorites.shuffle(using: &rng)
+            return (0..<count).map { i in
+                Style(favorite: favorites[i % favorites.count],
+                      pathBias: Int.random(in: -2...2, using: &rng),
+                      cellChoice: Int.random(in: 1...2, using: &rng),
+                      economyShift: Int.random(in: -5...5, using: &rng),
+                      likesSwarms: Bool.random(using: &rng),
+                      seed: rng.next())
+            }
+        }
+    }
+
     public let player: Int
     public let level: Level
+    public let style: Style
+    private var rng: SplitMix
     private var nextThinkTick = 0
     private var wavesSent = 0
     private var lastLives = Int.max
@@ -92,21 +131,28 @@ public struct Bot: Sendable {
     /// Score of each cell: how many path points lie within range (for a range of 50 px).
     private let cellScores: [(cell: GridPoint, score: Int)]
 
-    public init(player: Int, level: Level, map: GameMap) {
+    public init(player: Int, level: Level, map: GameMap, style: Style = .standard) {
         self.player = player
         self.level = level
+        self.style = style
+        self.rng = SplitMix(seed: style.seed)
         var scores: [(GridPoint, Int)] = []
         let range = 50 * Board.milli
+        let last = max(1, map.path.count - 1)
         for y in 0..<Board.cells {
             for x in 0..<Board.cells {
                 let cell = GridPoint(x: x, y: y)
                 guard map.isBuildable(cell) else { continue }
                 let c = Board.center(of: cell)
-                let score = map.path.filter { point in
-                    let q = Board.center(of: point)
+                let covered = map.path.indices.filter { i in
+                    let q = Board.center(of: map.path[i])
                     return distanceSquared(c.x, c.y, q.x, q.y) < range * range
-                }.count
-                if score > 0 { scores.append((cell, score)) }
+                }
+                guard !covered.isEmpty else { continue }
+                // Score in hundredths; the style moves it towards the entry or the exit of the path
+                // (at most about two path points either way).
+                let position = covered.reduce(0, +) * 1_000 / covered.count / last   // 0 entry … 1000 exit
+                scores.append((cell, covered.count * 100 + style.pathBias * (position - 500) / 5))
             }
         }
         // Best cells first; on a tie, closer to the end of the path (that is the last chance).
@@ -118,7 +164,9 @@ public struct Bot: Sendable {
     /// Returns the commands the bot wants to issue now.
     public mutating func think(game: Game) -> [Command] {
         guard game.isStarted, !game.isFinished, game.tick >= nextThinkTick else { return [] }
-        nextThinkTick = game.tick + level.thinkInterval
+        // With a style, the bots do not all decide in the same rhythm.
+        let jitter = style == .standard ? 0 : Int(rng.next() % UInt64(level.thinkInterval / 2 + 1))
+        nextThinkTick = game.tick + level.thinkInterval + jitter
         let board = game.players[player]
         guard !board.isDead else { return [] }
 
@@ -146,7 +194,7 @@ public struct Bot: Sendable {
         // Under fire (a life lost in the last 20 seconds and creeps on the board): defend first.
         let underFire = game.tick - lastLifeLostTick < 400 && damage < threat * 2
         // Otherwise defense may only take its share of the spending, the rest goes into creeps.
-        let share = level.economyShare
+        let share = min(85, max(20, level.economyShare + style.economyShift))
         let defenseInBudget = spentOnDefense * share <= spentOnAttack * (100 - share) + 400 * share
         var money = budget
         if defenseNeeded && (underFire || defenseInBudget),
@@ -249,8 +297,11 @@ public struct Bot: Sendable {
             for c in candidates(fund) {
                 // Not everything evaluated yet: decide at the next opportunity (results are cached).
                 guard let l = simulatedLeaks(game: game, opponent: opponent, type: c.type, count: c.count) else { return nil }
-                // More creeps through is better; on a tie the more expensive wave (more health per credit).
-                if best == nil || l > best!.leaks || (l == best!.leaks && c.type.stats.price > best!.type.stats.price) {
+                // More creeps through is better; on a tie the more expensive wave (more health per credit),
+                // unless the style likes swarms of cheaper creeps.
+                let tieWins = style.likesSwarms ? c.type.stats.price < (best?.type.stats.price ?? 0)
+                                                : c.type.stats.price > (best?.type.stats.price ?? 0)
+                if best == nil || l > best!.leaks || (l == best!.leaks && tieWins) {
                     best = (c.type, c.count, l)
                 }
             }
@@ -356,7 +407,7 @@ public struct Bot: Sendable {
         return leaked
     }
 
-    private func defenseCommand(board: PlayerBoard, budget: Int, game: Game) -> Command? {
+    private mutating func defenseCommand(board: PlayerBoard, budget: Int, game: Game) -> Command? {
         // An upgrade pays off when the next level is affordable and enough towers are already in place.
         let upgradable = board.towers
             .filter { $0.activity.isReady && $0.level < level.maxTowerLevel && ($0.nextLevelPrice ?? .max) <= budget }
@@ -371,13 +422,26 @@ public struct Bot: Sendable {
            (tower.nextLevelPrice ?? 0) * 2 <= budget {
             return .upgradeTower(id: tower.id)
         }
-        guard let cell = freeCells.first?.cell else { return nil }
+        // One of the best free cells (with a style not always the very best one).
+        guard !freeCells.isEmpty else { return nil }
+        let pick = Int(rng.next() % UInt64(min(style.cellChoice, freeCells.count)))
+        let cell = freeCells[pick].cell
+        func count(_ k: TowerKind) -> Int { board.towers.filter { $0.kind == k }.count }
+        let favorite = style.favorite
         let kind: TowerKind
         switch budget {
         case 20_000...: kind = .ultimate
-        case 1_000...: kind = board.towers.contains { $0.kind == .speed } ? .rocket : .speed
-        case 250...: kind = board.towers.filter { $0.kind == .splash }.count < 2 ? .splash : .basic
-        case 100...: kind = board.towers.contains { $0.kind == .slow } ? .basic : .slow
+        case 1_000...:
+            kind = favorite == .speed ? (count(.speed) < 3 ? .speed : .rocket) : (count(.speed) > 0 ? .rocket : .speed)
+        case 250...:
+            if count(.splash) < (favorite == .splash ? 4 : 2) { kind = .splash }
+            else { kind = favorite == .slow && count(.slow) < 3 ? .slow : .basic }
+        case 100...:
+            switch favorite {
+            case .slow?: kind = count(.slow) < 3 ? .slow : .basic
+            case .basic?: kind = count(.slow) == 0 && board.towers.count >= 3 ? .slow : .basic
+            default: kind = count(.slow) > 0 ? .basic : .slow
+            }
         case 50...: kind = .basic
         default: return upgradable.first.map { .upgradeTower(id: $0.id) }
         }
@@ -398,5 +462,20 @@ public struct Bot: Sendable {
         case let .sendCreeps(type, count): type.stats.price * count
         case .sellTower, .setStrategy, .surrender, .setSendMode: 0
         }
+    }
+}
+
+/// Small, fast random number generator with a seed (SplitMix64), so a bot's choices can be repeated.
+struct SplitMix: RandomNumberGenerator, Sendable {
+    private var state: UInt64
+
+    init(seed: UInt64) { state = seed }
+
+    mutating func next() -> UInt64 {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+        return z ^ (z >> 31)
     }
 }

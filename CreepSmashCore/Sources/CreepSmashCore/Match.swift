@@ -16,10 +16,16 @@ public final class LocalMatch: Match {
     private var sequences: [Int]
 
     public init(map: GameMap, rules: Rules = .standard, playerName: String,
-                opponents: [Bot.Level] = [.normal], opponentNames: [String]? = nil) {
+                opponents: [Bot.Level] = [.normal], opponentNames: [String]? = nil, seed: UInt64? = nil) {
         let names = [playerName] + (opponentNames ?? opponents.indices.map { "Computer \($0 + 1)" })
         game = Game(map: map, playerNames: names, rules: rules)
-        bots = opponents.enumerated().map { Bot(player: $0.offset + 1, level: $0.element, map: map) }
+        // With a seed every computer opponent gets its own playing style; without one (tests) all play
+        // the neutral style, so games can be repeated exactly.
+        let styles = seed.map { Bot.Style.varied(count: opponents.count, seed: $0) }
+            ?? Array(repeating: .standard, count: opponents.count)
+        bots = opponents.enumerated().map {
+            Bot(player: $0.offset + 1, level: $0.element, map: map, style: styles[$0.offset])
+        }
         sequences = Array(repeating: 0, count: names.count)
     }
 

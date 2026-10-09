@@ -107,7 +107,8 @@ struct RootView: View {
         let count = min(3, max(1, opponents))
         let names = count == 1 ? ["Computer · " + level.label] : (1...count).map { "CPU\($0)" }
         let match = LocalMatch(map: map, playerName: displayName, opponents: Array(repeating: level, count: count),
-                               opponentNames: names)
+                               opponentNames: names,
+                               seed: UInt64.random(in: 1...UInt64.max))
         // Demo games (autopilot) do not count for statistics and achievements.
         let mode: GameMode = count == 1 ? .computer(level) : .computerGroup(level, opponents: count)
         let controller = GameController(match: match, mode: demo ? nil : mode)
