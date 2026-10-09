@@ -143,6 +143,17 @@ struct SetupView: View {
     let onCancel: () -> Void
 
     var body: some View {
+        GeometryReader { geometry in
+            content(landscape: geometry.size.width > geometry.size.height)
+                .frame(width: geometry.size.width, height: geometry.size.height)
+        }
+        .background(Theme.background.ignoresSafeArea())
+        .onAppear {
+            if GameMap.named(mapID) == nil { mapID = GameMap.all[0].id }
+        }
+    }
+
+    private func content(landscape: Bool) -> some View {
         ZStack {
             Theme.background.ignoresSafeArea()
             VStack(spacing: Theme.s(14)) {
@@ -170,47 +181,54 @@ struct SetupView: View {
                     }
                     .onAppear { proxy.scrollTo(mapID, anchor: .center) }
                 }
-                HStack(alignment: .center, spacing: Theme.s(28)) {
-                    HStack(spacing: Theme.s(10)) {
-                        Text(L("Name")).font(Theme.mono(13)).foregroundStyle(.gray)
-                        TextField(L("Your name"), text: $playerName)
-                            .textFieldStyle(.roundedBorder)
-                            .font(Theme.mono(14))
-                            .frame(maxWidth: Theme.s(170))
-                            .textInputAutocapitalization(.words)
-                            .autocorrectionDisabled()
-                            .submitLabel(.done)
-                    }
-                    // Opponents and difficulty belong together: one below the other, same width.
-                    Grid(alignment: .leading, horizontalSpacing: Theme.s(10), verticalSpacing: Theme.s(8)) {
-                        GridRow {
-                            Text(L("Opponents")).font(Theme.mono(13)).foregroundStyle(.gray).fixedSize()
-                            Picker(L("Opponents"), selection: $opponents) {
-                                ForEach(1...3, id: \.self) { Text("\($0)").tag($0) }
-                            }
-                            .pickerStyle(.segmented)
-                            .frame(width: Theme.s(220))
-                        }
-                        GridRow {
-                            Text(L("Difficulty")).font(Theme.mono(13)).foregroundStyle(.gray).fixedSize()
-                            Picker(L("Difficulty"), selection: $level) {
-                                ForEach(Bot.Level.allCases, id: \.self) { Text($0.label).tag($0) }
-                            }
-                            .pickerStyle(.segmented)
-                            .frame(width: Theme.s(220))
-                        }
-                    }
-                    Spacer()
-                    Button(L("Start game"), action: onStart)
-                        .buttonStyle(MenuButtonStyle(minWidth: 170))
+                // Name, opponents and difficulty one below the other; the start button beside them
+                // in landscape, below them in portrait (iPad), so nothing gets cut off.
+                let layout = landscape ? AnyLayout(HStackLayout(spacing: Theme.s(60))) : AnyLayout(VStackLayout(spacing: Theme.s(16)))
+                layout {
+                    choices
+                    startButton
                 }
             }
             .padding(.horizontal, Theme.s(24))
             .padding(.vertical, Theme.s(10))
         }
-        .onAppear {
-            if GameMap.named(mapID) == nil { mapID = GameMap.all[0].id }
+    }
+
+    /// Name, opponents and difficulty: labels in one column, the fields equally wide.
+    private var choices: some View {
+        Grid(alignment: .leading, horizontalSpacing: Theme.s(10), verticalSpacing: Theme.s(8)) {
+            GridRow {
+                Text(L("Name")).font(Theme.mono(13)).foregroundStyle(.gray).fixedSize()
+                TextField(L("Your name"), text: $playerName)
+                    .textFieldStyle(.roundedBorder)
+                    .font(Theme.mono(14))
+                    .frame(width: Theme.s(220))
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled()
+                    .submitLabel(.done)
+            }
+            GridRow {
+                Text(L("Opponents")).font(Theme.mono(13)).foregroundStyle(.gray).fixedSize()
+                Picker(L("Opponents"), selection: $opponents) {
+                    ForEach(1...3, id: \.self) { Text("\($0)").tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: Theme.s(220))
+            }
+            GridRow {
+                Text(L("Difficulty")).font(Theme.mono(13)).foregroundStyle(.gray).fixedSize()
+                Picker(L("Difficulty"), selection: $level) {
+                    ForEach(Bot.Level.allCases, id: \.self) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: Theme.s(220))
+            }
         }
+    }
+
+    private var startButton: some View {
+        Button(L("Start game"), action: onStart)
+            .buttonStyle(MenuButtonStyle(minWidth: Theme.s(170), shrinks: false))
     }
 }
 
@@ -232,9 +250,13 @@ struct MapCard: View {
                 .font(Theme.mono(13, .bold))
                 .foregroundStyle(selected ? Theme.green : Theme.text)
             if size >= 120 {
-                Text(L("Path \(map.pathLength) cells · \(lengthLabel)"))
+                // Two lines in every card (the second may be empty), so all cards are equally high.
+                Text(lengthLabel)
                     .font(Theme.mono(10))
                     .foregroundStyle(.gray)
+                Text(verbatim: map.features.isEmpty ? " " : map.features.map(\.label).joined(separator: " · "))
+                    .font(Theme.mono(10))
+                    .foregroundStyle(Theme.gold)
             }
         }
         .contentShape(Rectangle())
@@ -242,10 +264,22 @@ struct MapCard: View {
     }
 
     private var lengthLabel: String {
-        switch map.pathLength {
-        case ..<45: L("short")
-        case ..<75: L("medium")
-        default: L("long")
+        switch map.walkLength {
+        case ..<45: L("short path")
+        case ..<75: L("medium path")
+        default: L("long path")
+        }
+    }
+}
+
+extension MapFeature {
+    var label: String {
+        switch self {
+        case .fastLanes: L("fast lanes")
+        case .jumps: L("jumps")
+        case .loops: L("loops")
+        case .uTurns: L("U-turns")
+        case .diagonals: L("diagonals")
         }
     }
 }
@@ -261,6 +295,7 @@ struct RulesView: View {
                     section(L("Money"), L("You start with 500 credits. Every 15 seconds your income is added to your credits (200 at the start)."))
                     section(L("Attack"), L("Send creeps to your opponent's board. Every creep you send raises your income for good. If a creep reaches the end of the path, your opponent loses a life – and the creep starts again from the beginning."))
                     section(L("Defend"), L("Build towers next to the path. Creeps you shoot down pay a bounty. Towers can be upgraded and sold for 75 % of their price. Building and upgrading take 2 seconds."))
+                    section(L("Maps"), L("Some maps have special sections. On fast lanes (yellow arrows, one per multiple of the speed) creeps run two to four times as fast. Through portals they jump across the board. Where a path runs laps, crosses itself or turns back at a dead end, towers there get the creeps more than once."))
                     section(L("Controls"), L("Your board is on the left, your opponent's on the right. Pick a tower on the left and tap a free cell. Tap a built tower to upgrade it, sell it or change its target. Tap a creep on the right to send one; hold it to keep sending until you let go or your credits run out."))
                     Divider().overlay(Theme.dimGreen)
                     Text(L("Towers")).font(Theme.pixel(14)).foregroundStyle(Theme.green)

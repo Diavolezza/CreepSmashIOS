@@ -54,7 +54,7 @@ public enum NetMessage: Codable, Equatable, Sendable {
 
     /// Must be increased on every change to rules, simulation or messages – only identical
     /// versions compute identically.
-    public static let protocolVersion = 3
+    public static let protocolVersion = 4
 
     public func encoded() -> Data {
         (try? JSONEncoder().encode(self)) ?? Data()

@@ -193,6 +193,17 @@
         }
       }
     },
+    "Asteroids" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asteroiden"
+          }
+        }
+      }
+    },
     "Attack" : {
       "localizations" : {
         "de" : {
@@ -209,6 +220,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Angriffsstärke"
+          }
+        }
+      }
+    },
+    "Aurora" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Polarlicht"
           }
         }
       }
@@ -522,6 +544,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Creeps abgeschossen"
+          }
+        }
+      }
+    },
+    "Crossroads" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kreuzung"
           }
         }
       }
@@ -1078,6 +1111,27 @@
         }
       }
     },
+    "Maelstrom" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mahlstrom"
+          }
+        }
+      }
+    },
+    "Maps" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Karten"
+          }
+        }
+      }
+    },
     "Master builder" : {
       "localizations" : {
         "de" : {
@@ -1293,22 +1347,23 @@
         }
       }
     },
-    "Path %lld cells · %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pfad %lld Felder · %@"
-          }
-        }
-      }
-    },
     "Pause" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pause"
+          }
+        }
+      }
+    },
+    "Pendulum" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pendel"
           }
         }
       }
@@ -1391,6 +1446,17 @@
         }
       }
     },
+    "Raceway" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rennbahn"
+          }
+        }
+      }
+    },
     "Random" : {
       "localizations" : {
         "de" : {
@@ -1407,6 +1473,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reichweite"
+          }
+        }
+      }
+    },
+    "Rapids" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stromschnellen"
           }
         }
       }
@@ -1607,6 +1684,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bremst das Ziel (nicht Ray, Shark, Phoenix); Stufe 4 bremst mehrere."
+          }
+        }
+      }
+    },
+    "Some maps have special sections. On fast lanes (yellow arrows, one per multiple of the speed) creeps run two to four times as fast. Through portals they jump across the board. Where a path runs laps, crosses itself or turns back at a dead end, towers there get the creeps more than once." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manche Karten haben besondere Abschnitte. Auf Schnellbahnen (gelbe Pfeile, einer je Vielfaches der Geschwindigkeit) laufen die Creeps zwei- bis viermal so schnell. Durch Portale springen sie quer über das Feld. Wo ein Weg Runden dreht, sich kreuzt oder in einer Sackgasse umkehrt, erwischen die Türme dort die Creeps mehrfach."
           }
         }
       }
@@ -1937,6 +2024,16 @@
         }
       }
     },
+    "U-turns" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kehrtwenden"
+          }
+        }
+      }
+    },
     "Ultimate" : {
       "localizations" : {
         "de" : {
@@ -2153,6 +2250,17 @@
         }
       }
     },
+    "Wormhole" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wurmloch"
+          }
+        }
+      }
+    },
     "You" : {
       "localizations" : {
         "de" : {
@@ -2303,6 +2411,16 @@
         }
       }
     },
+    "diagonals" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagonalen"
+          }
+        }
+      }
+    },
     "extremely slow" : {
       "localizations" : {
         "de" : {
@@ -2319,6 +2437,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "schnell"
+          }
+        }
+      }
+    },
+    "fast lanes" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schnellbahnen"
           }
         }
       }
@@ -2359,12 +2487,32 @@
         }
       }
     },
-    "long" : {
+    "jumps" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "lang"
+            "value" : "Sprünge"
+          }
+        }
+      }
+    },
+    "long path" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "langer Weg"
+          }
+        }
+      }
+    },
+    "loops" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schleifen"
           }
         }
       }
@@ -2375,6 +2523,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "mittel"
+          }
+        }
+      }
+    },
+    "medium path" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mittlerer Weg"
           }
         }
       }
@@ -2423,12 +2581,12 @@
       "comment" : "A description of the game's outcome.",
       "isCommentAutoGenerated" : true
     },
-    "short" : {
+    "short path" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "kurz"
+            "value" : "kurzer Weg"
           }
         }
       }

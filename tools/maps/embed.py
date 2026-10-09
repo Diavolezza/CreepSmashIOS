@@ -5,7 +5,9 @@ HERE = os.path.dirname(__file__)
 OUT = os.path.join(HERE, 'out')
 TARGET = os.path.join(HERE, '..', '..', 'CreepSmashCore', 'Sources', 'CreepSmashCore', 'BuiltInMaps.swift')
 MAPS = [('blue', 'Blue'), ('neon', 'Neon'), ('spirale', 'Spiral'), ('canyon', 'Canyon'),
-        ('platine', 'Circuit'), ('vulkan', 'Volcano')]
+        ('platine', 'Circuit'), ('vulkan', 'Volcano'),
+        ('rennbahn', 'Raceway'), ('wurmloch', 'Wormhole'), ('polarlicht', 'Aurora'), ('kreuzung', 'Crossroads'),
+        ('mahlstrom', 'Maelstrom'), ('pendel', 'Pendulum'), ('asteroiden', 'Asteroids'), ('stromschnellen', 'Rapids')]
 parts = ['// Built-in maps – all original designs of CreepSmash iOS.',
          '// Generated with tools/maps/generate.py (path and background image) and tools/maps/embed.py (this file).',
          '', 'extension GameMap {']

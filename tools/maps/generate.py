@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 """Generates the own maps of CreepSmash iOS: path (.map in the original's format) and background image.
 
-Usage:  python3 tools/maps/generate.py   (writes to tools/maps/out/)
+Usage:  python3 tools/maps/generate.py [map ids]   (writes to tools/maps/out/; no ids = all maps)
+
 Each map is described by the corner points of its path; the cells in between are filled in.
+Besides plain corners (x, y) a path can contain the special sections of the original's maps:
+  F(x, y, k)  fast lane: straight on to (x, y) with one path point every k cells – creeps are k times as fast there
+  J(x, y)     jump: the creeps fly straight to (x, y) in the time of one cell (drawn as two portals)
+  (x, y) diagonal from the last point (|dx| = |dy|): one path point per diagonal step
+A map with crossings=True may cross or retrace its own path (laps, crossings, dead ends the creeps come back from).
 """
 import math, os, random
 import numpy as np
@@ -12,18 +18,78 @@ CELLS, PX = 16, 60          # 16 × 16 cells, 60 px per cell -> 960 × 960 image
 SIZE = CELLS * PX
 OUT = os.path.join(os.path.dirname(__file__), 'out')
 
-def expand(corners):
-    cells = [corners[0]]
-    for (x0, y0), (x1, y1) in zip(corners, corners[1:]):
-        assert x0 == x1 or y0 == y1, f'Corner points not in a line: {(x0, y0)} -> {(x1, y1)}'
-        dx, dy = (x1 > x0) - (x1 < x0), (y1 > y0) - (y1 < y0)
-        x, y = x0, y0
-        while (x, y) != (x1, y1):
-            x, y = x + dx, y + dy
-            cells.append((x, y))
-    assert len(cells) == len(set(cells)), 'Path crosses itself'
-    assert all(0 <= x < CELLS and 0 <= y < CELLS for x, y in cells)
-    return cells
+def F(x, y, k=2):
+    """Fast lane to (x, y): a path point only every k cells."""
+    return ('fast', x, y, k)
+
+def J(x, y):
+    """Jump to (x, y)."""
+    return ('jump', x, y)
+
+def sign(v):
+    return (v > 0) - (v < 0)
+
+class Track(list):
+    """The path points in walking order (what the .map file lists), plus the sections for drawing.
+
+    segs: (from, to, kind) per path segment, kind = 'walk', 'diag', 'fast' or 'jump'.
+    """
+    def __init__(self, points, segs):
+        super().__init__(points)
+        self.segs = segs
+
+    @property
+    def strokes(self):
+        """Polylines to draw as track: the path split at the jumps."""
+        out = [[self[0]]]
+        for a, b, kind in self.segs:
+            if kind == 'jump':
+                out.append([b])
+            else:
+                out[-1].append(b)
+        return [s for s in out if len(s) > 1 or len(out) == 1]
+
+    @property
+    def cells(self):
+        """All cells the path occupies, including the ones a fast lane skips (as in GameMap.pathCells)."""
+        cells = set(self)
+        for a, b, kind in self.segs:
+            if kind == 'fast':
+                dx, dy = sign(b[0] - a[0]), sign(b[1] - a[1])
+                c = a
+                while c != b:
+                    c = (c[0] + dx, c[1] + dy)
+                    cells.add(c)
+        return cells
+
+def expand(spec, crossings=False):
+    points, segs = [tuple(spec[0])], []
+    for item in spec[1:]:
+        x0, y0 = points[-1]
+        if item[0] == 'jump':
+            b = (item[1], item[2])
+            segs.append(((x0, y0), b, 'jump'))
+            points.append(b)
+            continue
+        if item[0] == 'fast':
+            (x1, y1), k = item[1:3], item[3]
+        else:
+            (x1, y1), k = item, 1
+        dx, dy = sign(x1 - x0), sign(y1 - y0)
+        n = max(abs(x1 - x0), abs(y1 - y0))
+        assert x0 == x1 or y0 == y1 or (abs(x1 - x0) == abs(y1 - y0) and k == 1), \
+            f'Corner points not in a line: {(x0, y0)} -> {(x1, y1)}'
+        assert n % k == 0, f'Fast lane {(x0, y0)} -> {(x1, y1)} is not a multiple of {k} cells'
+        kind = 'fast' if k > 1 else ('diag' if dx and dy else 'walk')
+        for i in range(k, n + 1, k):
+            p = (x0 + dx * i, y0 + dy * i)
+            segs.append((points[-1], p, kind))
+            points.append(p)
+    track = Track(points, segs)
+    if not crossings:
+        assert len(points) == len(set(points)), 'Path crosses itself'
+    assert all(0 <= x < CELLS and 0 <= y < CELLS for x, y in track.cells)
+    return track
 
 def center(c):
     return (c[0] * PX + PX // 2, c[1] * PX + PX // 2)
@@ -60,14 +126,17 @@ def path_mask(cells, width_factor=0.86, round_joints=True):
     m = Image.new('L', (SIZE, SIZE), 0)
     d = ImageDraw.Draw(m)
     w = int(PX * width_factor)
-    pts = [center(c) for c in cells]
-    start, end = edge_extension(cells[0], cells[1]), edge_extension(cells[-1], cells[-2])
-    if start: pts.insert(0, start)
-    if end: pts.append(end)
-    d.line(pts, fill=255, width=w, joint='curve')
-    if round_joints:
-        for p in pts[1:-1]:
-            d.ellipse((p[0] - w // 2, p[1] - w // 2, p[0] + w // 2, p[1] + w // 2), fill=255)
+    strokes = cells.strokes if isinstance(cells, Track) else [cells]
+    for i, stroke in enumerate(strokes):
+        pts = [center(c) for c in stroke]
+        if i == 0 and edge_extension(stroke[0], stroke[1]):
+            pts.insert(0, edge_extension(stroke[0], stroke[1]))
+        if i == len(strokes) - 1 and edge_extension(stroke[-1], stroke[-2]):
+            pts.append(edge_extension(stroke[-1], stroke[-2]))
+        d.line(pts, fill=255, width=w, joint='curve')
+        if round_joints:
+            for p in pts[1:-1] if len(strokes) == 1 else pts:
+                d.ellipse((p[0] - w // 2, p[1] - w // 2, p[0] + w // 2, p[1] + w // 2), fill=255)
     return m
 
 def glow(mask, color, radius, strength=1.0):
@@ -93,6 +162,49 @@ def portal(img_arr, cell, color, rings=3):
         d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=255, width=4)
     arr = np.asarray(img, float)
     arr = arr + glow(over, color, 6, 1.5) + blend(np.zeros_like(arr), color, over)
+    return arr
+
+# ---------------------------------------------------------------- Marks for fast lanes and jumps
+
+FAST_COLOR = (255, 205, 40)     # chevrons: one per multiple of the speed (>> = twice as fast)
+JUMP_COLOR = (235, 90, 255)     # portals and the dotted flight line
+
+def decorate(arr, track):
+    if not isinstance(track, Track):
+        return arr
+    marks = Image.new('L', (SIZE, SIZE), 0)
+    d = ImageDraw.Draw(marks)
+    for a, b, kind in track.segs:
+        if kind != 'fast':
+            continue
+        k = max(abs(b[0] - a[0]), abs(b[1] - a[1]))
+        ux, uy = sign(b[0] - a[0]), sign(b[1] - a[1])
+        (ax, ay), (bx, by) = center(a), center(b)
+        mx, my = (ax + bx) / 2, (ay + by) / 2
+        s = PX * 0.16
+        for j in range(k):
+            off = (j - (k - 1) / 2) * PX * 0.3
+            cx, cy = mx + ux * off, my + uy * off
+            tip = (cx + ux * s, cy + uy * s)
+            back = (cx - ux * s, cy - uy * s)
+            d.line([(back[0] - uy * s * 1.3, back[1] + ux * s * 1.3), tip,
+                    (back[0] + uy * s * 1.3, back[1] - ux * s * 1.3)], fill=255, width=6, joint='curve')
+    arr = arr + glow(marks, FAST_COLOR, 6, 0.9)
+    arr = blend(arr, FAST_COLOR, marks)
+    dots = Image.new('L', (SIZE, SIZE), 0)
+    dd = ImageDraw.Draw(dots)
+    for a, b, kind in track.segs:
+        if kind != 'jump':
+            continue
+        (ax, ay), (bx, by) = center(a), center(b)
+        n = int(math.hypot(bx - ax, by - ay) / (PX * 0.45))
+        for i in range(2, n - 1):
+            x, y = ax + (bx - ax) * i / n, ay + (by - ay) * i / n
+            dd.ellipse((x - 4, y - 4, x + 4, y + 4), fill=255)
+        arr = portal(arr, a, JUMP_COLOR, 3)
+        arr = portal(arr, b, JUMP_COLOR, 3)
+    arr = arr + glow(dots, JUMP_COLOR, 5, 0.8)
+    arr = blend(arr, JUMP_COLOR, dots, 0.75)
     return arr
 
 # ---------------------------------------------------------------- Themes
@@ -260,7 +372,271 @@ def ocean(cells, blocked, seed):
     base = blend(base, (255, 110, 170), reef)
     return base
 
+# ---------------------------------------------------------------- Themes of the maps with special sections
+
+def stars(seed, count=600, brightness=0.9):
+    rng = random.Random(seed)
+    m = Image.new('L', (SIZE, SIZE), 0)
+    d = ImageDraw.Draw(m)
+    for _ in range(count):
+        x, y, r = rng.randrange(SIZE), rng.randrange(SIZE), rng.choice((1, 1, 1, 2, 2, 3))
+        d.ellipse((x - r, y - r, x + r, y + r), fill=rng.randrange(110, 255))
+    return np.asarray(m, float)[..., None] * brightness
+
+def lane(base, cells, fill, rim, width=0.86, rim_px=3, glow_radius=9, glow_strength=1.1):
+    """Dark track with a glowing rim (the common look of the space and neon maps)."""
+    m = path_mask(cells, width)
+    base = blend(base, fill, m)
+    e = edge(m, rim_px)
+    base = base + glow(e, rim, glow_radius, glow_strength)
+    return blend(base, tuple(min(255, c + 60) for c in rim), e, 0.9), m
+
+def raceway(cells, blocked, seed):
+    n = noise(seed, 220)
+    mow = ((np.arange(SIZE)[None, :] // (PX * 2)) % 2) * 0.1        # mowing stripes in the grass
+    base = np.zeros((SIZE, SIZE, 3)) + np.array((30, 104, 40)) * (0.82 + 0.25 * n[..., None] + mow[..., None])
+    m = path_mask(cells, 0.9)
+    asphalt = np.array((62, 62, 68)) * (0.8 + 0.35 * noise(seed + 2, 24, 2)[..., None])
+    a = np.asarray(m, float)[..., None] / 255
+    base = base * (1 - a) + asphalt * a
+    kerb = np.asarray(edge(m, 7), float)[..., None] / 255
+    xx, yy = np.meshgrid(np.arange(SIZE), np.arange(SIZE))
+    red = (((xx + yy) // 22) % 2 == 0)[..., None]
+    base = base * (1 - kerb) + np.where(red, np.array((225, 35, 35)), np.array((245, 245, 245))) * kerb
+    # chequered start/finish line across the track at the first lap point
+    cx, cy = center(cells[1])
+    sq = 10
+    flag = Image.new('L', (SIZE, SIZE), 0)
+    d = ImageDraw.Draw(flag)
+    for i in range(-3, 3):
+        for j in range(-1, 1):
+            if (i + j) % 2 == 0:
+                d.rectangle((cx + j * sq, cy + i * sq, cx + j * sq + sq - 1, cy + i * sq + sq - 1), fill=255)
+    lines = Image.new('L', (SIZE, SIZE), 0)
+    ImageDraw.Draw(lines).rectangle((cx - sq, cy - 3 * sq, cx + sq - 1, cy + 3 * sq - 1), fill=255)
+    base = blend(base, (20, 20, 20), lines)
+    base = blend(base, (250, 250, 250), flag)
+    # grandstand on the blocked cells: a roof with rows of spectators
+    stand = Image.new('L', (SIZE, SIZE), 0)
+    crowd = np.zeros((SIZE, SIZE, 3))
+    crowd_mask = Image.new('L', (SIZE, SIZE), 0)
+    ds, dc = ImageDraw.Draw(stand), ImageDraw.Draw(crowd_mask)
+    rng = random.Random(seed)
+    colors = [(255, 80, 80), (80, 160, 255), (255, 220, 60), (240, 240, 240), (120, 230, 120)]
+    for (x, y) in blocked:
+        ds.rectangle((x * PX + 2, y * PX + 2, x * PX + PX - 3, y * PX + PX - 3), fill=255)
+        for row in range(4):
+            for col in range(6):
+                px, py = x * PX + 8 + col * 9, y * PX + 9 + row * 12
+                dc.ellipse((px - 3, py - 3, px + 3, py + 3), fill=255)
+                crowd[py - 3:py + 4, px - 3:px + 4] = rng.choice(colors)
+    base = base + glow(stand, (-60, -60, -60), 8, 1.0)
+    base = blend(base, (70, 72, 84), stand)
+    cm = np.asarray(crowd_mask, float)[..., None] / 255
+    return base * (1 - cm) + crowd * cm
+
+def wormhole(cells, blocked, seed):
+    base = np.zeros((SIZE, SIZE, 3)) + np.array((5, 4, 14))
+    n1, n2 = noise(seed, 380), noise(seed + 1, 260)
+    base += (n1[..., None] ** 3) * np.array((170, 70, 30)) + (n2[..., None] ** 3) * np.array((30, 50, 170))
+    base = base + stars(seed) * np.array((1, 1, 1))
+    base, _ = lane(base, cells, (6, 6, 18), (60, 255, 190), 0.82)
+    return base
+
+def aurora(cells, blocked, seed):
+    base = gradient((4, 10, 30), (12, 34, 52))
+    xs = np.arange(SIZE)
+    ny = noise(seed, 300)[0]
+    yc = SIZE * 0.3 + 70 * np.sin(xs / 140 + 1.3) + 60 * (ny - 0.5)
+    streaks = 0.55 + 0.45 * np.sin(xs / 9 + 6 * ny) * np.sin(xs / 23)
+    y = np.arange(SIZE)[:, None]
+    below = np.exp(-np.clip(y - yc[None, :], 0, None) / 40) * (y >= yc[None, :] - 0)
+    above = np.exp(-np.clip(yc[None, :] - y, 0, None) / 160) * (y < yc[None, :])
+    curtain = (below + above) * streaks[None, :]
+    mix = np.clip((yc[None, :] - y) / 220 + 0.5, 0, 1)[..., None]   # green below, violet above
+    color = np.array((50, 255, 140)) * (1 - mix) + np.array((170, 80, 255)) * mix
+    base = base + curtain[..., None] * color * 0.55
+    base = base + stars(seed, 300, 0.5) * (y < SIZE * 0.6)[..., None]
+    snow = (noise(seed + 4, 30, 2) > 0.62)[..., None] * (y > SIZE * 0.45)[..., None]
+    base = base + snow * np.array((14, 22, 30))
+    base, _ = lane(base, cells, (12, 30, 50), (150, 230, 255), 0.84)
+    crystals = Image.new('L', (SIZE, SIZE), 0)
+    d = ImageDraw.Draw(crystals)
+    for (x, y0) in blocked:
+        cx, cy = center((x, y0))
+        for k in range(3):
+            a = k * math.pi / 3
+            dx, dy = math.cos(a) * PX * 0.38, math.sin(a) * PX * 0.38
+            d.line((cx - dx, cy - dy, cx + dx, cy + dy), fill=255, width=5)
+            for s in (-1, 1):   # little side branches
+                bx, by = cx + s * dx * 0.55, cy + s * dy * 0.55
+                for t in (-1, 1):
+                    b = a + t * math.pi / 4
+                    d.line((bx, by, bx + s * math.cos(b) * PX * 0.14, by + s * math.sin(b) * PX * 0.14), fill=255, width=3)
+    base = base + glow(crystals, (120, 210, 255), 7, 1.2)
+    return blend(base, (230, 250, 255), crystals)
+
+def crossroads(cells, blocked, seed):
+    rng = random.Random(seed)
+    base = np.zeros((SIZE, SIZE, 3)) + np.array((12, 12, 18))
+    roofs = np.zeros((SIZE, SIZE, 3))
+    roof_mask = Image.new('L', (SIZE, SIZE), 0)
+    lit = Image.new('L', (SIZE, SIZE), 0)
+    dr, dl = ImageDraw.Draw(roof_mask), ImageDraw.Draw(lit)
+    for y in range(CELLS):
+        for x in range(CELLS):
+            g = rng.randrange(34, 62)
+            m = rng.randrange(4, 9)
+            box = (x * PX + m, y * PX + m, x * PX + PX - m, y * PX + PX - m)
+            dr.rectangle(box, fill=255)
+            roofs[box[1]:box[3] + 1, box[0]:box[2] + 1] = (g, g, g + 8)
+            for wy in range(box[1] + 6, box[3] - 6, 10):
+                for wx in range(box[0] + 6, box[2] - 6, 10):
+                    if rng.random() < 0.2:
+                        dl.rectangle((wx, wy, wx + 4, wy + 4), fill=255)
+    rm = np.asarray(roof_mask, float)[..., None] / 255
+    base = base * (1 - rm) + roofs * rm
+    base = base + glow(lit, (255, 190, 90), 4, 0.5)
+    base = blend(base, (230, 195, 120), lit, 0.8)
+    m = path_mask(cells, 0.88, round_joints=False)
+    base = blend(base, (36, 36, 42), m)
+    walk = edge(m, 5)
+    base = blend(base, (120, 120, 130), walk)
+    dashes = Image.new('L', (SIZE, SIZE), 0)
+    dd = ImageDraw.Draw(dashes)
+    for a, b in zip(cells, cells[1:]):
+        (ax, ay), (bx, by) = center(a), center(b)
+        for t in (0.0, 0.5):
+            x0, y0 = ax + (bx - ax) * t, ay + (by - ay) * t
+            x1, y1 = ax + (bx - ax) * (t + 0.28), ay + (by - ay) * (t + 0.28)
+            dd.line((x0, y0, x1, y1), fill=255, width=4)
+    return blend(base, (250, 205, 60), dashes, 0.9)
+
+def maelstrom(cells, blocked, seed):
+    yy, xx = np.mgrid[0:SIZE, 0:SIZE]
+    cx = cy = SIZE / 2
+    r = np.hypot(xx - cx, yy - cy) + 1
+    theta = np.arctan2(yy - cy, xx - cx)
+    n = noise(seed, 200)
+    v = 0.5 + 0.5 * np.sin(4 * theta + r / 30 + 4 * n)
+    deep, light = np.array((4, 26, 56)), np.array((16, 104, 138))
+    base = deep * (1 - v[..., None]) + light * v[..., None]
+    base = base * (0.6 + 0.4 * np.clip(r / (SIZE * 0.5), 0, 1))[..., None]   # darker towards the eye
+    foam = np.clip((v - 0.93) * 14, 0, 1)[..., None] * np.clip(r / 200 - 0.3, 0, 1)[..., None]
+    base = base + foam * np.array((70, 110, 120))
+    base, _ = lane(base, cells, (2, 12, 26), (60, 220, 255), 0.84)
+    return base
+
+def pendulum(cells, blocked, seed):
+    rng = random.Random(seed)
+    n = noise(seed, 160)
+    base = np.zeros((SIZE, SIZE, 3)) + np.array((40, 44, 52)) * (0.8 + 0.35 * n[..., None])
+    seams = Image.new('L', (SIZE, SIZE), 0)
+    rivets = Image.new('L', (SIZE, SIZE), 0)
+    ds, dv = ImageDraw.Draw(seams), ImageDraw.Draw(rivets)
+    for i in range(0, CELLS + 1, 4):
+        ds.line((i * PX, 0, i * PX, SIZE), fill=255, width=3)
+        ds.line((0, i * PX, SIZE, i * PX), fill=255, width=3)
+        for j in range(0, CELLS + 1, 4):
+            for ox, oy in ((10, 10), (-10, 10), (10, -10), (-10, -10)):
+                x, y = i * PX + ox, j * PX + oy
+                dv.ellipse((x - 3, y - 3, x + 3, y + 3), fill=255)
+    base = blend(base, (18, 20, 24), seams)
+    base = blend(base, (110, 116, 126), rivets)
+    bolts = Image.new('L', (SIZE, SIZE), 0)
+    db = ImageDraw.Draw(bolts)
+    for _ in range(8):
+        x, y = rng.randrange(SIZE), rng.randrange(SIZE)
+        a = rng.uniform(0, math.tau)
+        pts = [(x, y)]
+        for _ in range(rng.randrange(5, 9)):
+            a += rng.uniform(-0.9, 0.9)
+            x, y = x + math.cos(a) * rng.uniform(14, 30), y + math.sin(a) * rng.uniform(14, 30)
+            pts.append((x, y))
+        db.line(pts, fill=255, width=2)
+    base = base + glow(bolts, (90, 140, 255), 5, 0.7)
+    base = blend(base, (190, 215, 255), bolts, 0.6)
+    base, _ = lane(base, cells, (8, 10, 20), (80, 160, 255), 0.84, 3, 11, 1.4)
+    # Tesla coils on the blocked cells: base plate, copper winding, glowing ball on top
+    plates = Image.new('L', (SIZE, SIZE), 0)
+    coils = Image.new('L', (SIZE, SIZE), 0)
+    core = Image.new('L', (SIZE, SIZE), 0)
+    dp, dc, dk = ImageDraw.Draw(plates), ImageDraw.Draw(coils), ImageDraw.Draw(core)
+    for (x, y) in blocked:
+        cx, cy = center((x, y))
+        dp.rectangle((x * PX + 4, y * PX + 4, x * PX + PX - 5, y * PX + PX - 5), fill=255)
+        for k in range(5):
+            yy = cy - 6 + k * 6
+            dc.line((cx - 11, yy, cx + 11, yy), fill=255, width=3)
+        dk.ellipse((cx - 8, cy - 22, cx + 8, cy - 6), fill=255)
+    base = blend(base, (24, 26, 32), plates)
+    base = blend(base, (140, 146, 156), edge(plates, 2))
+    base = blend(base, (205, 120, 55), coils)
+    base = base + glow(core, (120, 180, 255), 10, 1.6)
+    return blend(base, (230, 240, 255), core)
+
+def asteroids(cells, blocked, seed):
+    base = np.zeros((SIZE, SIZE, 3)) + np.array((7, 7, 13))
+    n1, n2 = noise(seed, 330), noise(seed + 1, 180)
+    base += (n1[..., None] ** 3) * np.array((170, 60, 25)) + (n2[..., None] ** 4) * np.array((90, 30, 90))
+    base = base + stars(seed, 500) * np.array((1, 1, 1))
+    base, _ = lane(base, cells, (10, 8, 14), (255, 140, 50), 0.74)
+    rng = random.Random(seed)
+    rocks = Image.new('L', (SIZE, SIZE), 0)
+    craters = Image.new('L', (SIZE, SIZE), 0)
+    dr, dc = ImageDraw.Draw(rocks), ImageDraw.Draw(craters)
+    for (x, y) in blocked:
+        cx, cy = center((x, y))
+        pts = [(cx + math.cos(t) * PX * rng.uniform(0.34, 0.47), cy + math.sin(t) * PX * rng.uniform(0.34, 0.47))
+               for t in np.linspace(0, math.tau, 10)[:-1]]
+        dr.polygon(pts, fill=255)
+        for _ in range(3):
+            ox, oy, rr = rng.uniform(-0.18, 0.18) * PX, rng.uniform(-0.18, 0.18) * PX, rng.uniform(0.05, 0.1) * PX
+            dc.ellipse((cx + ox - rr, cy + oy - rr, cx + ox + rr, cy + oy + rr), outline=255, width=3)
+    base = blend(base, (105, 96, 92), rocks)
+    base = blend(base, (150, 142, 136), edge(rocks, 2), 0.8)
+    return blend(base, (60, 54, 52), craters)
+
+def rapids(cells, blocked, seed):
+    rng = random.Random(seed)
+    n, fine = noise(seed, 220), noise(seed + 5, 40, 3)
+    base = np.zeros((SIZE, SIZE, 3)) + np.array((44, 96, 42)) * (0.75 + 0.3 * n[..., None] + 0.15 * fine[..., None])
+    flowers = Image.new('L', (SIZE, SIZE), 0)
+    df = ImageDraw.Draw(flowers)
+    for _ in range(160):
+        x, y = rng.randrange(SIZE), rng.randrange(SIZE)
+        df.ellipse((x - 2, y - 2, x + 2, y + 2), fill=255)
+    base = blend(base, (235, 225, 150), flowers, 0.7)
+    m = path_mask(cells, 0.9)
+    bank = m.filter(ImageFilter.MaxFilter(11))
+    base = blend(base, (176, 156, 108), bank)
+    water = np.array((26, 84, 150)) * (0.8 + 0.4 * noise(seed + 3, 60, 3)[..., None])
+    a = np.asarray(m.filter(ImageFilter.GaussianBlur(2)), float)[..., None] / 255
+    base = base * (1 - a) + water * a
+    # white water on the rapids (the fast lanes)
+    fast = Image.new('L', (SIZE, SIZE), 0)
+    dfa = ImageDraw.Draw(fast)
+    for a_, b_, kind in getattr(cells, 'segs', []):
+        if kind == 'fast':
+            dfa.line((center(a_), center(b_)), fill=255, width=int(PX * 0.7))
+    foam = np.asarray(fast, float)[..., None] / 255 * (noise(seed + 8, 18, 2) > 0.55)[..., None]
+    base = base * (1 - foam * 0.6) + np.array((220, 240, 250)) * foam * 0.6
+    stones = Image.new('L', (SIZE, SIZE), 0)
+    shine = Image.new('L', (SIZE, SIZE), 0)
+    ds, dh = ImageDraw.Draw(stones), ImageDraw.Draw(shine)
+    for (x, y) in blocked:
+        cx, cy = center((x, y))
+        r = PX * 0.4
+        ds.ellipse((cx - r, cy - r * 0.85, cx + r, cy + r * 0.85), fill=255)
+        dh.ellipse((cx - r * 0.5, cy - r * 0.6, cx, cy - r * 0.15), fill=255)
+    base = base + glow(stones, (-50, -50, -50), 8, 1.0)
+    base = blend(base, (120, 120, 116), stones)
+    return blend(base, (175, 175, 170), shine, 0.7)
+
 # ---------------------------------------------------------------- Maps
+
+# One lap of the raceway: fast straights, corners at normal speed.
+RACE_LAP = [F(12, 12, 2), (13, 12), (13, 11), F(13, 5, 2), (13, 3), (12, 3), F(4, 3, 2), (2, 3), (2, 4), F(2, 10, 2), (2, 12)]
 
 MAPS = [
     dict(id='blue', name='Blue', theme=ocean, seed=6,
@@ -282,12 +658,41 @@ MAPS = [
     dict(id='vulkan', name='Volcano', theme=volcano, seed=5,
          corners=[(1, 15), (1, 1), (4, 1), (4, 14), (7, 14), (7, 1), (10, 1), (10, 14), (13, 14), (13, 1), (15, 1)],
          blocked=[(2, 7), (5, 4), (6, 10), (8, 6), (9, 12), (11, 3), (12, 9), (15, 8), (14, 12)]),
+    # --- maps with the special sections of the original (fast lanes, jumps, laps, dead ends, diagonals)
+    dict(id='rennbahn', name='Raceway', theme=raceway, seed=11, crossings=True,
+         corners=[(0, 12), (2, 12)] + RACE_LAP + RACE_LAP + RACE_LAP[:5] + [(15, 3)],
+         blocked=[(6, 7), (7, 7), (8, 7), (9, 7), (6, 8), (7, 8), (8, 8), (9, 8)]),
+    dict(id='wurmloch', name='Wormhole', theme=wormhole, seed=12,
+         corners=[(0, 2), (5, 2), (5, 6), (1, 6), (1, 10), (6, 10), J(10, 2), (14, 2), (14, 7), (10, 7), (10, 10),
+                  J(3, 12), (3, 14), (12, 14), (12, 11), (15, 11)],
+         blocked=[]),
+    dict(id='polarlicht', name='Aurora', theme=aurora, seed=13, crossings=True,
+         corners=[(0, 9), (3, 9), (3, 2), (3, 9), (8, 9), (8, 14), (8, 9), (12, 9), (12, 3), (12, 9), (15, 9)],
+         blocked=[(6, 4), (5, 12), (13, 13), (15, 4), (10, 6), (1, 12)]),
+    dict(id='kreuzung', name='Crossroads', theme=crossroads, seed=14, crossings=True,
+         corners=[(0, 10), (10, 10), (10, 3), (5, 3), (5, 13), (13, 13), (13, 7), (2, 7), (2, 1), (15, 1)],
+         blocked=[]),
+    dict(id='mahlstrom', name='Maelstrom', theme=maelstrom, seed=15, crossings=True,
+         corners=[(0, 1), (14, 1), (14, 14), (1, 14), (1, 4), (11, 4), (11, 11), (4, 11), (4, 7), (8, 7), F(8, 15, 4)],
+         blocked=[]),
+    dict(id='pendel', name='Pendulum', theme=pendulum, seed=16, crossings=True,
+         corners=[(0, 2), (12, 2), (12, 5), (2, 5), (2, 9), (14, 9), F(2, 9, 2), (2, 13), (14, 13), F(2, 13, 3), (2, 15)],
+         blocked=[(8, 11), (15, 6), (6, 7)]),
+    dict(id='asteroiden', name='Asteroids', theme=asteroids, seed=17,
+         corners=[(0, 1), (5, 6), (10, 1), (14, 5), (14, 9), (10, 13), (6, 9), (2, 13), (2, 15)],
+         blocked=[(5, 1), (5, 2), (12, 9), (8, 14), (9, 14), (3, 7), (14, 13), (1, 6), (8, 5), (11, 5)]),
+    dict(id='stromschnellen', name='Rapids', theme=rapids, seed=18,
+         corners=[(3, 0), (3, 3), (8, 3), (8, 1), (13, 1), (13, 4), F(13, 10, 2), (9, 10), (9, 6), (5, 6), F(5, 12, 3),
+                  (5, 14), (11, 14), (11, 12), (15, 12)],
+         blocked=[(11, 7), (7, 9), (1, 5), (15, 8), (9, 12)]),
 ]
 
 def write(m):
-    cells = expand(m['corners'])
-    blocked = [b for b in m['blocked'] if b not in cells]
-    img = to_img(m['theme'](cells, blocked, m['seed']))
+    cells = expand(m['corners'], m.get('crossings', False))
+    if not any(k != 'walk' for _, _, k in cells.segs):
+        cells = list(cells)   # plain maps: drawn exactly as before
+    blocked = [b for b in m['blocked'] if b not in set(expand(m['corners'], m.get('crossings', False)).cells)]
+    img = to_img(decorate(m['theme'](cells, blocked, m['seed']), cells))
     os.makedirs(OUT, exist_ok=True)
     img.save(os.path.join(OUT, f"map_{m['id']}.jpg"), quality=90)
     lines = ['###', f"### {m['name'].upper()} – own map of CreepSmash iOS", '###', '',
@@ -299,5 +704,7 @@ def write(m):
     print(f"{m['id']:8} path {len(cells):3} cells, blocked {len(blocked)}")
 
 if __name__ == '__main__':
+    import sys
     for m in MAPS:
-        write(m)
+        if len(sys.argv) < 2 or m['id'] in sys.argv[1:]:
+            write(m)

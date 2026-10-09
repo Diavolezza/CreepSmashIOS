@@ -30,7 +30,15 @@ This document records what the Swift remake takes over and where it deliberately
 - 16 × 16 cells of 20 pixels → 320 × 320 pixels per player.
 - Map file (text): a line with the image file (`.jpg`/`.png`), path points `x,y` (in walking order), blocked cells `x;y`; lines starting with `#` are comments.
 - Path cells and blocked cells cannot be built on; each cell holds at most one tower.
-- Maps: six own designs (Blue, Neon, Spirale, Canyon, Platine, Vulkan), generated with `tools/maps/generate.py` and embedded with `tools/maps/embed.py`. The original map BLUE (75 path points) is only used by the tests (`Tests/.../OriginalBlueMap.swift`).
+- Maps: 14 own designs, generated with `tools/maps/generate.py` and embedded with `tools/maps/embed.py`. The original map BLUE (75 path points) is only used by the tests (`Tests/.../OriginalBlueMap.swift`).
+  - Plain paths: Blue, Neon, Spiral, Canyon, Circuit, Volcano.
+  - With the special sections that several original maps have (raceways, speedrace, jumping creeps, richtungswechsel …): Raceway (three laps with fast straights), Wormhole (two jumps through portals), Aurora (three dead ends the creeps walk into and back), Crossroads (the path crosses itself three times), Maelstrom (spiral inwards, then a 4× fast lane straight out across the rings), Pendulum (two corridors, each walked out at normal speed and back at 2× and 3×), Asteroids (diagonal zigzag), Rapids (meanders with 2× and 3× rapids).
+- Every path segment takes the same time, however long it is (as in the original). This gives the special sections:
+  - Fast lane: path points k cells apart on a straight line – creeps are k times as fast there. The skipped cells belong to the path (not buildable). Drawn with yellow chevrons, one per multiple of the speed.
+  - Jump: two path points far apart off a straight line – creeps fly across in the time of one cell; the cells below stay buildable. Drawn as two portals with a dotted line.
+  - Laps, crossings and dead ends: path points visited more than once – towers there get the creeps several times.
+  - Diagonal steps (|dx| = |dy| = 1).
+- The map selection names the length (short/medium/long by walking time, i.e. number of segments) and the special sections.
 
 ## 4 Creeps
 

@@ -370,8 +370,8 @@ final class DeterminismTests: XCTestCase {
 
 final class AllMapsTests: XCTestCase {
     func testAllBuiltInMapsParseAndRun() {
-        XCTAssertEqual(GameMap.all.count, 6)
-        XCTAssertEqual(Set(GameMap.all.map(\.id)).count, 6)
+        XCTAssertEqual(GameMap.all.count, 14)
+        XCTAssertEqual(Set(GameMap.all.map(\.id)).count, 14)
         for map in GameMap.all {
             XCTAssertFalse(map.imageName.isEmpty, map.id)
             XCTAssertGreaterThanOrEqual(map.path.count, 20, map.id)
@@ -390,5 +390,38 @@ final class AllMapsTests: XCTestCase {
         let map = try GameMap.parse(name: "t", text: "bild.png\n0,5\n0,2\n3,2\n")
         XCTAssertTrue(map.pathCells.contains(GridPoint(x: 0, y: 4)))
         XCTAssertFalse(map.isBuildable(GridPoint(x: 1, y: 2)))
+    }
+
+    func testSpecialSectionsOfTheMaps() throws {
+        XCTAssertEqual(GameMap.blue.features, [])
+        XCTAssertEqual(GameMap.named("rennbahn")?.features, [.fastLanes, .loops])
+        XCTAssertEqual(GameMap.named("wurmloch")?.features, [.jumps])
+        XCTAssertEqual(GameMap.named("polarlicht")?.features, [.uTurns])
+        XCTAssertEqual(GameMap.named("kreuzung")?.features, [.loops])
+        XCTAssertEqual(GameMap.named("pendel")?.features, [.fastLanes, .uTurns])
+        XCTAssertEqual(GameMap.named("asteroiden")?.features, [.diagonals])
+        XCTAssertEqual(GameMap.named("stromschnellen")?.features, [.fastLanes])
+        // The cells a jump flies over stay free; the cells a fast lane skips do not.
+        let wormhole = try XCTUnwrap(GameMap.named("wurmloch"))
+        XCTAssertTrue(wormhole.isBuildable(GridPoint(x: 8, y: 6)))
+        let rapids = try XCTUnwrap(GameMap.named("stromschnellen"))
+        XCTAssertFalse(rapids.isBuildable(GridPoint(x: 13, y: 5)))
+    }
+
+    func testCreepsAreFasterOnAFastLane() throws {
+        // Same distance (8 cells), once cell by cell and once as a fast lane with a point every 4 cells.
+        let slow = try GameMap.parse(name: "s", text: "b.png\n" + (0...8).map { "\($0),5" }.joined(separator: "\n"))
+        let fast = try GameMap.parse(name: "f", text: "b.png\n0,5\n4,5\n8,5\n")
+        func ticksToCross(_ map: GameMap) -> Int {
+            let game = Game(map: map, playerNames: ["A", "B"])
+            while !game.isStarted { game.step() }
+            game.schedule(ScheduledCommand(tick: game.tick, player: 0, sequence: 0, command: .sendCreeps(type: .mercury, count: 1)))
+            let lives = game.players[1].lives
+            var ticks = 0
+            while game.players[1].lives == lives && ticks < 2_000 { game.step(); ticks += 1 }
+            return ticks
+        }
+        let slowTicks = ticksToCross(slow), fastTicks = ticksToCross(fast)
+        XCTAssertLessThan(fastTicks * 3, slowTicks, "slow \(slowTicks), fast \(fastTicks)")
     }
 }

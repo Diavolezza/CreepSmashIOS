@@ -6,3 +6,4 @@ xcuserdata/
 .swiftpm/
 CreepSmashCore/.build/
 DerivedData/
+__pycache__/

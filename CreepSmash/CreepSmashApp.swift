@@ -143,7 +143,7 @@ struct RootView: View {
     /// Launch arguments for screenshots and tests in the Simulator:
     /// -demo (game against the computer, fast-forwarded), -host CODE / -join CODE / -quick (two players), -twoplayer („Zu zweit“ page), -autopilot,
     /// -records (records page), -sampleProgress (adds made-up games to the records),
-    /// -landscape (turns an iPad simulator to landscape), -report (evaluation of the last game).
+    /// -landscape (turns an iPad simulator to landscape), -report (evaluation of the last game), -map ID (map of the game).
     private func handleLaunchArguments() {
         let args = ProcessInfo.processInfo.arguments
         if args.contains("-landscape") {
@@ -179,6 +179,7 @@ struct RootView: View {
                 _ = ProgressStore.shared.add(summary, playerName: displayName)
             }
         }
+        if let id = value(after: "-map"), GameMap.named(id) != nil { mapID = id }
         if args.contains("-records") { showRecords = true }
         if args.contains("-report") { showReport = true }
         if args.contains("-demo") {

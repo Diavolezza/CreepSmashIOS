@@ -5,6 +5,20 @@ public struct GridPoint: Hashable, Codable, Sendable, CustomStringConvertible {
     public var description: String { "(\(x),\(y))" }
 }
 
+/// Special sections of a path, as in several maps of the original.
+public enum MapFeature: String, CaseIterable, Sendable {
+    /// Path points several cells apart on a straight line: creeps are that many times faster there.
+    case fastLanes
+    /// Path points far apart off a straight line: creeps fly across the board in the time of one cell.
+    case jumps
+    /// The path crosses itself or runs laps: towers there hit the creeps more than once.
+    case loops
+    /// The path runs into a dead end and back.
+    case uTurns
+    /// Diagonal steps.
+    case diagonals
+}
+
 public enum MapError: Error, Equatable {
     case invalidLine(Int, String)
     case pathTooShort
@@ -44,8 +58,34 @@ public struct GameMap: Sendable {
         self.pathCells = cells
     }
 
-    /// Length of the path in cells (shown in the map selection).
+    /// Length of the path in cells.
     public var pathLength: Int { pathCells.count }
+
+    /// How long a creep walks, in cells at normal speed (one path segment each): the measure for short/medium/long.
+    public var walkLength: Int { path.count - 1 }
+
+    /// The special sections of the path, in the order they are named in the map selection.
+    public var features: [MapFeature] {
+        var found: Set<MapFeature> = []
+        for (i, (a, b)) in zip(path, path.dropFirst()).enumerated() {
+            let dx = abs(b.x - a.x), dy = abs(b.y - a.y)
+            if dx == 0 || dy == 0 {
+                if dx + dy > 1 { found.insert(.fastLanes) }
+            } else if dx == 1 && dy == 1 {
+                found.insert(.diagonals)
+            } else {
+                found.insert(.jumps)
+            }
+            if i > 0 {   // turning back: this step goes exactly the opposite way of the last one
+                let p = path[i - 1]
+                if (b.x - a.x).signum() == -(a.x - p.x).signum(), (b.y - a.y).signum() == -(a.y - p.y).signum() {
+                    found.insert(.uTurns)
+                }
+            }
+        }
+        if !found.contains(.uTurns), Set(path).count < path.count { found.insert(.loops) }
+        return MapFeature.allCases.filter(found.contains)
+    }
 
     public static func parse(id: String = "", name: String, text: String) throws -> GameMap {
         var image = ""
