@@ -384,6 +384,11 @@ struct GameScreen: View {
                         .buttonStyle(MenuButtonStyle(fill: true))
                     Button(L("Options")) { showOptions = true }
                         .buttonStyle(MenuButtonStyle(color: Theme.text, fill: true))
+                    if controller.canSave {
+                        // The game is kept and can be continued from the menu, even after closing the app.
+                        Button(L("Continue later")) { controller.leaveForLater(); onExit() }
+                            .buttonStyle(MenuButtonStyle(color: Theme.gold, fill: true))
+                    }
                     Button(L("Give up")) { leave() }
                         .buttonStyle(MenuButtonStyle(color: Theme.warning, fill: true))
                 }

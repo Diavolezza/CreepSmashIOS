@@ -43,6 +43,8 @@ struct RootView: View {
     @State private var showRecords = false
     @State private var showReport = false
     @State private var handledLaunchArguments = false
+    /// Continuing a saved game: share of it replayed so far (nil = not loading).
+    @State private var resumeProgress: Double?
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("botLevel") private var level: Bot.Level = .normal
     @AppStorage("map") private var mapID = GameMap.blue.id
@@ -76,7 +78,8 @@ struct RootView: View {
                     .id(ObjectIdentifier(controller))
             } else {
                 MenuView(level: $level, mapID: $mapID, playerName: $playerName, showTwoPlayer: $showTwoPlayer,
-                         matchmaker: matchmaker, onStart: { startGame() })
+                         matchmaker: matchmaker, onStart: { startGame() }, onResume: { resumeGame() })
+                    .overlay { if let resumeProgress { loadingOverlay(resumeProgress) } }
             }
         }
         .environment(\.locale, AppLanguage.current.locale)
@@ -101,8 +104,49 @@ struct RootView: View {
     /// Name sent to the other device; empty without a name, it then shows "Opponent".
     private var networkName: String { playerName.trimmingCharacters(in: .whitespaces) }
 
+    /// Continues the saved game: replays it in the background (a few seconds for a long game), then shows it paused.
+    private func resumeGame() {
+        guard resumeProgress == nil, let saved = SavedGameStore.load() else { return }
+        let mode = saved.mode
+        resumeProgress = 0
+        Task.detached(priority: .userInitiated) {
+            var stats = GameStats(me: 0, mode: mode)
+            var reported = 0
+            let match = LocalMatch(restoring: saved) { game in
+                stats.observe(game)
+                if game.tick - reported >= 400 {
+                    reported = game.tick
+                    let fraction = Double(game.tick) / Double(max(1, saved.tick))
+                    Task { @MainActor in if resumeProgress != nil { resumeProgress = fraction } }
+                }
+            }
+            let collected = stats
+            await MainActor.run {
+                resumeProgress = nil
+                guard let match else { SavedGameStore.clear(); return }
+                let controller = GameController(match: match, mode: mode, stats: collected)
+                controller.isPaused = true
+                self.controller = controller
+            }
+        }
+    }
+
+    private func loadingOverlay(_ progress: Double) -> some View {
+        ZStack {
+            Color.black.opacity(0.75).ignoresSafeArea()
+            VStack(spacing: Theme.s(12)) {
+                Text(L("Loading game …")).font(Theme.pixel(14)).foregroundStyle(Theme.green)
+                ProgressView(value: progress)
+                    .tint(Theme.green)
+                    .frame(width: Theme.s(260))
+            }
+        }
+    }
+
     private func startGame(demo: Bool = false) {
         controller?.stop()
+        // A new game against the computer replaces an interrupted one.
+        if !demo { SavedGameStore.clear() }
         let map = GameMap.named(mapID) ?? .blue
         let count = min(3, max(1, opponents))
         let names = count == 1 ? ["Computer · " + level.label] : (1...count).map { "CPU\($0)" }
@@ -143,7 +187,8 @@ struct RootView: View {
     /// Launch arguments for screenshots and tests in the Simulator:
     /// -demo (game against the computer, fast-forwarded), -host CODE / -join CODE / -quick (two players), -twoplayer („Zu zweit“ page), -autopilot,
     /// -records (records page), -sampleProgress (adds made-up games to the records),
-    /// -landscape (turns an iPad simulator to landscape), -report (evaluation of the last game), -map ID (map of the game).
+    /// -landscape (turns an iPad simulator to landscape), -report (evaluation of the last game), -map ID (map of the game),
+    /// -play (normal game against the computer), -resume (continue the saved game).
     private func handleLaunchArguments() {
         let args = ProcessInfo.processInfo.arguments
         if args.contains("-landscape") {
@@ -184,6 +229,10 @@ struct RootView: View {
         if args.contains("-report") { showReport = true }
         if args.contains("-demo") {
             startGame(demo: true)
+        } else if args.contains("-play") {
+            startGame()
+        } else if args.contains("-resume") {
+            resumeGame()
         } else if let code = value(after: "-host") {
             matchmaker.host(mapID: mapID, name: networkName, code: Matchmaker.normalize(code))
         } else if let code = value(after: "-join") {

@@ -8,6 +8,9 @@ struct MenuView: View {
     @Binding var showTwoPlayer: Bool
     let matchmaker: Matchmaker
     let onStart: () -> Void
+    let onResume: () -> Void
+    /// An interrupted game against the computer that can be continued.
+    @State private var savedGame = SavedGameStore.load()
     @State private var showRules = false
     @State private var showSetup = false
     @State private var showOptions = false
@@ -34,10 +37,16 @@ struct MenuView: View {
                 // Both buttons share one width and never shrink their text, so the font size is the same.
                 // Side by side where they fit, otherwise one above the other.
                 ViewThatFits(in: .horizontal) {
-                    HStack(spacing: Theme.s(24)) { mainButtons }
-                        .frame(maxWidth: Theme.s(580))
-                    VStack(spacing: Theme.s(16)) { mainButtons }
-                        .frame(maxWidth: Theme.s(340))
+                    VStack(spacing: Theme.s(16)) {
+                        continueButton
+                        HStack(spacing: Theme.s(24)) { mainButtons }
+                    }
+                    .frame(maxWidth: Theme.s(580))
+                    VStack(spacing: Theme.s(16)) {
+                        continueButton
+                        mainButtons
+                    }
+                    .frame(maxWidth: Theme.s(340))
                 }
                 .padding(.bottom, Theme.s(28))
             }
@@ -99,6 +108,21 @@ struct MenuView: View {
 }
 
 extension MenuView {
+    /// Continue the interrupted game (only if there is one), with map, difficulty and game time below.
+    @ViewBuilder private var continueButton: some View {
+        if let savedGame {
+            VStack(spacing: Theme.s(6)) {
+                Button(L("Continue game"), action: onResume)
+                    .buttonStyle(MenuButtonStyle(color: Theme.gold, minWidth: 0, fill: true, shrinks: false))
+                Text(verbatim: savedGame.caption)
+                    .font(Theme.mono(13))
+                    .foregroundStyle(.gray)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+        }
+    }
+
     /// The two large buttons of the start screen.
     @ViewBuilder private var mainButtons: some View {
         Button(L("Vs. computer")) { showSetup = true }

@@ -163,6 +163,16 @@
         }
       }
     },
+    "1 opponent" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 Gegner"
+          }
+        }
+      }
+    },
     "Achievements" : {
       "localizations" : {
         "de" : {
@@ -470,6 +480,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Verbindung gestört"
+          }
+        }
+      }
+    },
+    "Continue game" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spiel fortsetzen"
+          }
+        }
+      }
+    },
+    "Continue later" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Später weiterspielen"
           }
         }
       }
@@ -1077,6 +1107,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Leben verloren"
+          }
+        }
+      }
+    },
+    "Loading game …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spiel wird geladen …"
           }
         }
       }

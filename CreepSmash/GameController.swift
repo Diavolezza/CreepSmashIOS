@@ -111,11 +111,12 @@ final class GameController {
     /// Course and numbers of the finished game, for the evaluation.
     private(set) var summary: GameSummary?
 
-    init(match: any Match, mode: GameMode? = nil) {
+    /// - Parameter stats: statistics collected so far (a continued game); otherwise they start empty.
+    init(match: any Match, mode: GameMode? = nil, stats: GameStats? = nil) {
         self.match = match
         let name = match.game.players[match.localPlayer].name
         self.playerName = name.isEmpty ? L("You") : name
-        if let mode { stats = GameStats(me: match.localPlayer, mode: mode) }
+        if let mode { self.stats = stats ?? GameStats(me: match.localPlayer, mode: mode) }
         updateHUD()
         network?.onPeerPause = { [weak self] paused in
             MainActor.assumeIsolated {
@@ -136,10 +137,29 @@ final class GameController {
 
     /// Pause on/off; in an online game for both players.
     func setPaused(_ paused: Bool) {
+        // Every pause (also when the app goes to the background) saves a game against the computer,
+        // so it survives the app being closed.
+        if paused { save() }
         guard paused != isPaused || pausedByOpponent else { return }
         isPaused = paused
         pausedByOpponent = false
         network?.sendPause(paused)
+    }
+
+    /// A game against the computer can be continued later; not demo games, not finished ones.
+    var canSave: Bool {
+        match is LocalMatch && stats != nil && autopilot == nil && !recorded && !game.isFinished && !game.players[me].isDead
+    }
+
+    func save() {
+        guard canSave, let local = match as? LocalMatch else { return }
+        SavedGameStore.save(local.saved)
+    }
+
+    /// Leave the game without giving up; it can be continued from the menu.
+    func leaveForLater() {
+        save()
+        stop()
     }
 
     /// The game is over for the local player: add it to the record once.
@@ -153,6 +173,7 @@ final class GameController {
     private func record(won: Bool) {
         guard !recorded, let stats else { return }
         recorded = true
+        SavedGameStore.clear()
         let opponentName = isGroup ? game.players.indices.filter { $0 != me }.map(displayName).joined(separator: ", ")
                                    : hud.opponentName
         let summary = stats.summary(game: game, won: won, opponentName: opponentName,
@@ -165,6 +186,7 @@ final class GameController {
     func quit() {
         // Giving up a running game counts as a loss.
         if game.isStarted { record(won: false) }
+        if match is LocalMatch, autopilot == nil { SavedGameStore.clear() }
         stop()
         network?.leave()
     }
@@ -221,6 +243,8 @@ final class GameController {
         if steps > 0 {
             updateHUD()
             recordIfFinished()
+            // Also every 30 seconds of play, in case the app does not get to save on leaving.
+            if game.tick % 600 < steps { save() }
         }
         effects.prune(now: timestamp)
     }

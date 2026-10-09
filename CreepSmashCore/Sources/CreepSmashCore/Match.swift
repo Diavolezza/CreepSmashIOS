@@ -14,6 +14,8 @@ public final class LocalMatch: Match {
     public let localPlayer = 0
     private var bots: [Bot]
     private var sequences: [Int]
+    /// Setup and inputs of the player, for saving the game (see `SavedGame`).
+    private(set) var record: SavedGame
 
     public init(map: GameMap, rules: Rules = .standard, playerName: String,
                 opponents: [Bot.Level] = [.normal], opponentNames: [String]? = nil, seed: UInt64? = nil) {
@@ -27,9 +29,12 @@ public final class LocalMatch: Match {
             Bot(player: $0.offset + 1, level: $0.element, map: map, style: styles[$0.offset])
         }
         sequences = Array(repeating: 0, count: names.count)
+        record = SavedGame(version: NetMessage.protocolVersion, mapID: map.id, rules: rules, playerName: playerName,
+                           opponents: opponents, opponentNames: opponentNames, seed: seed)
     }
 
     public func issue(_ command: Command) {
+        record.inputs.append(SavedGame.Input(tick: game.tick, command: command))
         enqueue(command, player: localPlayer)
     }
 

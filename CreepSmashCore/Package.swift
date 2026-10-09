@@ -8,7 +8,9 @@ let package = Package(
         .library(name: "CreepSmashCore", targets: ["CreepSmashCore"])
     ],
     targets: [
-        .target(name: "CreepSmashCore"),
+        // Optimized also in Debug builds: continuing a saved game replays it, which takes many times
+        // longer without optimization (and the tests run faster).
+        .target(name: "CreepSmashCore", swiftSettings: [.unsafeFlags(["-O"], .when(configuration: .debug))]),
         .testTarget(name: "CreepSmashCoreTests", dependencies: ["CreepSmashCore"])
     ]
 )
