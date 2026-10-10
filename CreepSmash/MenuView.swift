@@ -263,7 +263,7 @@ struct MapCard: View {
 
     var body: some View {
         VStack(spacing: Theme.s(4)) {
-            Image(String(map.imageName.split(separator: ".").first ?? ""))
+            Image(uiImage: MapThumbnails.image(for: map))
                 .resizable()
                 .aspectRatio(1, contentMode: .fit)
                 .frame(width: size, height: size)

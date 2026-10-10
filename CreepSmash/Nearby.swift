@@ -107,6 +107,9 @@ final class NearbyFinder {
 
     var onConnected: ((Transport, Role) -> Void)?
     var onError: ((String) -> Void)?
+    /// Devices that would match but run another protocol version (they cannot play together):
+    /// their versions, reported whenever the set changes. They are never connected to.
+    var onOtherVersions: ((Set<Int>) -> Void)?
     /// Short technical status for the search screen (helps when nothing is found).
     var onStatus: ((String) -> Void)?
 
@@ -119,6 +122,17 @@ final class NearbyFinder {
     private var finished = false
     private var advertised = "–"
     private var found = 0
+    /// What the search is for: kind "Q" (quick game) or "C" with the code. Names of other versions are
+    /// recognized by this, so the player learns why nobody is found.
+    private var wanted: (kind: String, code: String?) = ("Q", nil)
+    private var otherVersions: Set<Int> = []
+
+    /// Parts of a service name "CS<version>-<kind>-<id or code>" – the scheme of all versions so far.
+    static func parse(_ name: String) -> (version: Int, kind: String, rest: String)? {
+        let parts = name.split(separator: "-", maxSplits: 2).map(String.init)
+        guard parts.count == 3, parts[0].hasPrefix("CS"), let version = Int(parts[0].dropFirst(2)) else { return nil }
+        return (version, parts[1], parts[2])
+    }
 
     func host(code: String) {
         advertise(name: "\(Self.prefix)-C-\(code)")
@@ -126,12 +140,14 @@ final class NearbyFinder {
 
     func join(code: String) {
         let target = "\(Self.prefix)-C-\(code)"
+        wanted = ("C", code)
         browse { name in name == target }
     }
 
     func quick() {
         let me = String(UInt32.random(in: .min ... .max), radix: 16)
         let quickPrefix = "\(Self.prefix)-Q-"
+        wanted = ("Q", nil)
         advertise(name: quickPrefix + me)
         browse { name in
             guard name.hasPrefix(quickPrefix) else { return false }
@@ -210,11 +226,22 @@ final class NearbyFinder {
     private func connectToResults() {
         guard !finished, let browser, let accept else { return }
         found = 0
+        var versions: Set<Int> = []
         for result in browser.browseResults {
-            guard case let .service(name, _, _, _) = result.endpoint, accept(name) else { continue }
+            guard case let .service(name, _, _, _) = result.endpoint else { continue }
+            if let other = Self.parse(name), other.version != NetMessage.protocolVersion, other.kind == wanted.kind,
+               wanted.code == nil || other.rest == wanted.code {
+                versions.insert(other.version)
+                continue
+            }
+            guard accept(name) else { continue }
             found += 1
             guard attempts[name] == nil else { continue }
             attempt(NWConnection(to: result.endpoint, using: StreamTransport.parameters), name: name, role: .guest)
+        }
+        if versions != otherVersions {
+            otherVersions = versions
+            onOtherVersions?(versions)
         }
         reportStatus()
     }

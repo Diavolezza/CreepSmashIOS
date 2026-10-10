@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
-"""Writes CreepSmashCore/.../BuiltInMaps.swift from tools/maps/out/*.map."""
-import os
+"""Writes CreepSmashCore/.../BuiltInMaps.swift from tools/maps/out/*.map and puts the pictures into the
+asset catalog: map_<id> (960 px, the board) and map_<id>_small (480 px, the map cards in the menus)."""
+import json, os, shutil
+from PIL import Image
 HERE = os.path.dirname(__file__)
 OUT = os.path.join(HERE, 'out')
 TARGET = os.path.join(HERE, '..', '..', 'CreepSmashCore', 'Sources', 'CreepSmashCore', 'BuiltInMaps.swift')
@@ -24,3 +26,18 @@ parts.append('    public static func named(_ id: String) -> GameMap? { all.first
 parts.append('}')
 open(TARGET, 'w', encoding='utf-8').write('\n'.join(parts) + '\n')
 print(TARGET)
+
+ASSETS = os.path.join(HERE, '..', '..', 'CreepSmash', 'Assets.xcassets', 'Maps')
+for mid, _ in MAPS:
+    source = os.path.join(OUT, f'map_{mid}.jpg')
+    for name, size in ((f'map_{mid}', None), (f'map_{mid}_small', 480)):
+        folder = os.path.join(ASSETS, f'{name}.imageset')
+        os.makedirs(folder, exist_ok=True)
+        target = os.path.join(folder, f'{name}.jpg')
+        if size is None:
+            shutil.copyfile(source, target)
+        else:
+            Image.open(source).resize((size, size), Image.LANCZOS).save(target, quality=85)
+        contents = {'images': [{'filename': f'{name}.jpg', 'idiom': 'universal'}], 'info': {'author': 'xcode', 'version': 1}}
+        json.dump(contents, open(os.path.join(folder, 'Contents.json'), 'w'), indent=2)
+print(ASSETS)

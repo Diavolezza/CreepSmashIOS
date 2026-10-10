@@ -22,6 +22,8 @@ final class Matchmaker {
     private(set) var state: State = .idle
     /// Technical detail of the search, shown in small print (helps when nothing is found).
     private(set) var detail = ""
+    /// A nearby device runs another version of the app, so the two cannot play together (shown during the search).
+    private(set) var versionNotice: String?
     /// Called with the ready game.
     var onMatch: ((NetworkMatch) -> Void)?
 
@@ -71,6 +73,7 @@ final class Matchmaker {
         nearby = nil
         state = .idle
         detail = ""
+        versionNotice = nil
     }
 
     private func start(name: String) {
@@ -86,7 +89,28 @@ final class Matchmaker {
         finder.onStatus = { [weak self] status in
             MainActor.assumeIsolated { self?.detail = status }
         }
+        finder.onOtherVersions = { [weak self] versions in
+            MainActor.assumeIsolated { self?.otherVersionsFound(versions) }
+        }
         nearby = finder
+    }
+
+    private func otherVersionsFound(_ versions: Set<Int>) {
+        guard let other = versions.max() else { versionNotice = nil; return }
+        let newer = other > NetMessage.protocolVersion
+        if case .joining = state {
+            // The game with this code exists, but cannot be joined: stop with a clear message.
+            let message = newer
+                ? L("The game with this code was opened with a newer version of CreepSmash. Please update this device.")
+                : L("The game with this code was opened with an older version of CreepSmash. Please update the other device.")
+            cancel()
+            state = .failed(message)
+        } else {
+            // Quick game: keep looking (another device may fit), but say why this one is not taken.
+            versionNotice = newer
+                ? L("A device nearby has a newer version of CreepSmash. Please update this device.")
+                : L("A device nearby has an older version of CreepSmash. Please update the other device.")
+        }
     }
 
     private func connected(_ transport: Transport, role: NearbyFinder.Role) {

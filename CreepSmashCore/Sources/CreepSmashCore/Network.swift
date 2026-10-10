@@ -47,14 +47,16 @@ public enum NetMessage: Codable, Equatable, Sendable {
     case input(tick: Int, commands: [ScheduledCommand])
     /// Checksum of the state after computing `tick`.
     case hash(tick: Int, value: UInt64)
-    /// Pause on or off (applies to both).
+    /// Pause on (`true`, applies to both) or the one who paused continues (`false`: countdown, then both go on).
     case pause(Bool)
+    /// The pause of the receiver lasted longer than `NetworkMatch.pauseLimit`: the receiver has lost.
+    case pauseExpired
     /// Player leaves the game.
     case leave
 
     /// Must be increased on every change to rules, simulation or messages – only identical
     /// versions compute identically.
-    public static let protocolVersion = 4
+    public static let protocolVersion = 5
 
     public func encoded() -> Data {
         (try? JSONEncoder().encode(self)) ?? Data()
@@ -153,7 +155,27 @@ public final class NetworkMatch: Match {
         case opponentGone
         /// The devices computed differently (bug in the simulation).
         case desynced(tick: Int)
+        /// A pause lasted longer than `pauseLimit`; the player who paused has lost.
+        case pauseExpired(loser: Int)
     }
+
+    /// A pause. Only the player who paused can end it; then a countdown runs on both devices.
+    public struct Pause: Equatable, Sendable {
+        public let player: Int
+        public let since: Date
+        /// The game goes on at this moment (countdown running); nil while it is still paused.
+        public internal(set) var resumesAt: Date?
+    }
+
+    /// If the player who paused does not continue within this time, the other one wins.
+    public static let pauseLimit: TimeInterval = 120
+    /// Countdown before the game goes on after a pause.
+    public static let resumeCountdown: TimeInterval = 3
+    /// The current pause (nil: running). No ticks are computed while it lasts, countdown included.
+    public private(set) var pause: Pause?
+    public var isPaused: Bool { pause != nil }
+    /// Clock for the pause (tests set their own).
+    public var clock: () -> Date = Date.init
 
     public let game: Game
     public let localPlayer: Int
@@ -209,7 +231,7 @@ public final class NetworkMatch: Match {
 
     @discardableResult
     public func advance() -> Bool {
-        guard !game.isFinished else { return false }
+        guard !game.isFinished, pause == nil else { return false }
         if case .desynced = status { return false }
         flush(upTo: game.tick + game.rules.inputDelayTicks)
         guard remoteReadyTick >= game.tick else { return false }
@@ -224,10 +246,34 @@ public final class NetworkMatch: Match {
         return true
     }
 
-    /// Turns pause on or off for both devices.
-    public func sendPause(_ paused: Bool) {
-        guard status == .running else { return }
-        transport.send(NetMessage.pause(paused).encoded())
+    /// Pauses the game for both devices. Ignored while the opponent's pause lasts. Pausing again during
+    /// the own countdown keeps the time already paused (the limit is not reset).
+    public func pauseGame() {
+        guard status == .running, !game.isFinished else { return }
+        if let current = pause {
+            guard current.player == localPlayer, current.resumesAt != nil else { return }
+            pause?.resumesAt = nil
+        } else {
+            pause = Pause(player: localPlayer, since: clock())
+        }
+        transport.send(NetMessage.pause(true).encoded())
+    }
+
+    /// Ends the own pause: after the countdown both devices go on.
+    public func resumeGame() {
+        guard status == .running, let current = pause, current.player == localPlayer, current.resumesAt == nil else { return }
+        pause?.resumesAt = clock().addingTimeInterval(Self.resumeCountdown)
+        transport.send(NetMessage.pause(false).encoded())
+    }
+
+    /// To be called regularly (every frame): ends the countdown and enforces the pause limit.
+    public func updatePause() {
+        guard status == .running, let current = pause else { return }
+        if let at = current.resumesAt {
+            if clock() >= at { pause = nil }
+        } else if clock().timeIntervalSince(current.since) >= Self.pauseLimit {
+            end(loser: current.player)
+        }
     }
 
     /// Surrenders and disconnects. The opponent wins.
@@ -265,8 +311,26 @@ public final class NetworkMatch: Match {
         case let .hash(tick, value):
             remoteHashes[tick] = value
             compareHash(tick)
-        case let .pause(paused):
-            onPeerPause?(paused)
+        case .pause(true):
+            if let current = pause {
+                if current.player == remotePlayer {
+                    pause?.resumesAt = nil                  // paused again during the countdown
+                } else if current.resumesAt == nil && localPlayer < remotePlayer {
+                    break                                   // both paused at the same moment: the host's pause counts
+                } else {
+                    pause = Pause(player: remotePlayer, since: clock())
+                }
+            } else {
+                pause = Pause(player: remotePlayer, since: clock())
+            }
+            onPeerPause?(true)
+        case .pause(false):
+            if let current = pause, current.player == remotePlayer, current.resumesAt == nil {
+                pause?.resumesAt = clock().addingTimeInterval(Self.resumeCountdown)
+            }
+            onPeerPause?(false)
+        case .pauseExpired:
+            end(loser: localPlayer)
         case .leave:
             opponentGone()
         case .hello, .welcome, .reject:
@@ -283,9 +347,45 @@ public final class NetworkMatch: Match {
         }
     }
 
+    /// A pause lasted too long: the player who paused surrenders, the game ends for this device
+    /// (the other one learns it by `pauseExpired` or `leave`).
+    private func end(loser: Int) {
+        guard status == .running else { return }
+        if loser == localPlayer {
+            let tick = nextCommandTick
+            issue(.surrender)
+            flush(upTo: tick)
+            transport.send(NetMessage.leave.encoded())
+        } else {
+            transport.send(NetMessage.pauseExpired.encoded())
+            if !game.isFinished {
+                let tick = max(game.tick, remoteReadyTick + 1)
+                game.schedule(ScheduledCommand(tick: tick, player: remotePlayer, sequence: Int.max, command: .surrender))
+            }
+        }
+        transport.onReceive = nil
+        transport.onClose = nil
+        remoteReadyTick = .max
+        pause = nil
+        setStatus(.pauseExpired(loser: loser))
+    }
+
     /// The opponent is gone: they surrender in the next free tick, all further packets count as empty.
     private func opponentGone() {
         guard status == .running else { return }
+        // Back from a pause that was too long (the app was in the background, the connection has
+        // dropped meanwhile): it is not the opponent who has lost but we.
+        if let current = pause, current.player == localPlayer, current.resumesAt == nil,
+           clock().timeIntervalSince(current.since) >= Self.pauseLimit {
+            return end(loser: localPlayer)
+        }
+        // The other side ended the game because of our timeout just now, or the other device's own
+        // limit ran out first: report it as the expired pause it is.
+        if let current = pause, current.player == remotePlayer, current.resumesAt == nil,
+           clock().timeIntervalSince(current.since) >= Self.pauseLimit - 5 {
+            return end(loser: remotePlayer)
+        }
+        pause = nil
         transport.onReceive = nil
         transport.onClose = nil
         if !game.isFinished {

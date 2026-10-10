@@ -188,6 +188,112 @@ final class NetworkTests: XCTestCase {
         if case .desynced = host.status {} else { XCTFail("Host does not detect the divergence: \(host.status)") }
     }
 
+    // MARK: - Pause
+
+    /// Two connected games with a shared, adjustable clock.
+    private func pausable(_ net: FakeNetwork) -> (NetworkMatch, NetworkMatch, (TimeInterval) -> Void) {
+        let (host, guest) = connect(net)
+        var now = Date(timeIntervalSince1970: 1_000_000)
+        host.clock = { now }
+        guest.clock = { now }
+        for _ in 0..<100 { net.now += 1; net.deliver(); host.advance(); guest.advance() }
+        return (host, guest, { now += $0 })
+    }
+
+    private func run(_ net: FakeNetwork, _ matches: NetworkMatch..., frames: Int = 10) {
+        for _ in 0..<frames {
+            net.now += 1
+            net.deliver()
+            for m in matches { m.updatePause(); m.advance() }
+        }
+    }
+
+    func testOnlyThePlayerWhoPausedCanGoOnAfterACountdown() {
+        let net = FakeNetwork(latency: 2)
+        let (host, guest, wait) = pausable(net)
+        guest.pauseGame()
+        run(net, host, guest)
+        XCTAssertEqual(host.pause?.player, 1)
+        XCTAssertEqual(guest.pause?.player, 1)
+        let ticks = (host.game.tick, guest.game.tick)
+        run(net, host, guest, frames: 50)
+        XCTAssertEqual(host.game.tick, ticks.0, "no ticks during the pause")
+        XCTAssertEqual(guest.game.tick, ticks.1)
+        host.resumeGame()                       // not the host's pause
+        run(net, host, guest)
+        XCTAssertNil(host.pause?.resumesAt)
+        guest.resumeGame()
+        run(net, host, guest)
+        XCTAssertNotNil(host.pause?.resumesAt, "countdown on both devices")
+        XCTAssertNotNil(guest.pause?.resumesAt)
+        wait(NetworkMatch.resumeCountdown)
+        run(net, host, guest, frames: 50)
+        XCTAssertFalse(host.isPaused)
+        XCTAssertFalse(guest.isPaused)
+        XCTAssertGreaterThan(host.game.tick, ticks.0)
+        XCTAssertEqual(host.status, .running)
+    }
+
+    func testPausingAgainDuringTheCountdownKeepsTheTimePaused() {
+        let net = FakeNetwork(latency: 2)
+        let (host, guest, wait) = pausable(net)
+        host.pauseGame()
+        run(net, host, guest)
+        wait(100)
+        host.resumeGame()
+        run(net, host, guest)
+        host.pauseGame()                        // e.g. the app went to the background during the countdown
+        run(net, host, guest)
+        XCTAssertNil(guest.pause?.resumesAt)
+        wait(25)                                // 125 s in total
+        run(net, host, guest, frames: 60)
+        XCTAssertEqual(guest.status, .pauseExpired(loser: 0))
+    }
+
+    func testPausingAtTheSameMomentCountsAsTheHostsPause() {
+        let net = FakeNetwork(latency: 2)
+        let (host, guest, _) = pausable(net)
+        host.pauseGame()
+        guest.pauseGame()
+        run(net, host, guest)
+        XCTAssertEqual(host.pause?.player, 0)
+        XCTAssertEqual(guest.pause?.player, 0)
+    }
+
+    func testAPauseOfMoreThanTwoMinutesLetsTheOtherPlayerWin() {
+        let net = FakeNetwork(latency: 2)
+        let (host, guest, wait) = pausable(net)
+        guest.pauseGame()
+        run(net, host, guest)
+        wait(NetworkMatch.pauseLimit - 1)
+        run(net, host, guest)
+        XCTAssertEqual(host.status, .running)
+        wait(2)
+        // Only the waiting device notices (the other one may be in the background).
+        run(net, host, frames: 60)
+        XCTAssertEqual(host.status, .pauseExpired(loser: 1))
+        XCTAssertTrue(host.game.isFinished)
+        XCTAssertEqual(host.game.winner, 0)
+        // The device that paused learns it as soon as it runs again.
+        run(net, guest, frames: 60)
+        XCTAssertEqual(guest.status, .pauseExpired(loser: 1))
+        XCTAssertTrue(guest.game.isFinished)
+        XCTAssertEqual(guest.game.winner, 0)
+    }
+
+    func testBackFromATooLongPauseAfterTheConnectionDroppedIsALoss() {
+        let net = FakeNetwork(latency: 2)
+        let (host, guest, wait) = pausable(net)
+        guest.pauseGame()
+        run(net, host, guest)
+        wait(NetworkMatch.pauseLimit + 30)
+        // The connection dropped meanwhile; the paused device must not win by it.
+        (guestTransport(of: host) as? LoopbackTransport)?.close()
+        run(net, guest, frames: 60)
+        XCTAssertEqual(guest.status, .pauseExpired(loser: 1))
+        XCTAssertEqual(guest.game.winner, 0)
+    }
+
     private func guestTransport(of match: NetworkMatch) -> Transport {
         Mirror(reflecting: match).children.first { $0.label == "transport" }!.value as! Transport
     }

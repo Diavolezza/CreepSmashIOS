@@ -14,12 +14,22 @@
         }
       }
     },
-    "%@ has paused the game." : {
+    "%@ did not continue within 2 minutes – you win." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ hat das Spiel angehalten."
+            "value" : "%@ hat nicht innerhalb von 2 Minuten weitergemacht – du gewinnst."
+          }
+        }
+      }
+    },
+    "%@ has paused the game. If the game does not go on within %@, you win." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ hat das Spiel pausiert. Geht es nicht innerhalb von %2$@ weiter, gewinnst du."
           }
         }
       }
@@ -132,7 +142,6 @@
       }
     },
     "%lld opponents" : {
-      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -169,6 +178,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "1 Gegner"
+          }
+        }
+      }
+    },
+    "A device nearby has a newer version of CreepSmash. Please update this device." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Gerät in der Nähe hat eine neuere Version von CreepSmash. Bitte dieses Gerät aktualisieren."
+          }
+        }
+      }
+    },
+    "A device nearby has an older version of CreepSmash. Please update the other device." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Gerät in der Nähe hat eine ältere Version von CreepSmash. Bitte das andere Gerät aktualisieren."
           }
         }
       }
@@ -1903,6 +1932,16 @@
         }
       }
     },
+    "The game goes on …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gleich geht es weiter …"
+          }
+        }
+      }
+    },
     "The game has not started yet" : {
       "localizations" : {
         "de" : {
@@ -1929,6 +1968,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Das Spiel war zu kurz für einen Verlauf."
+          }
+        }
+      }
+    },
+    "The game with this code was opened with a newer version of CreepSmash. Please update this device." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Spiel mit diesem Code wurde mit einer neueren Version von CreepSmash eröffnet. Bitte dieses Gerät aktualisieren."
+          }
+        }
+      }
+    },
+    "The game with this code was opened with an older version of CreepSmash. Please update the other device." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Spiel mit diesem Code wurde mit einer älteren Version von CreepSmash eröffnet. Bitte das andere Gerät aktualisieren."
           }
         }
       }
@@ -2407,6 +2466,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Der Gegner hat das Spiel verlassen"
+          }
+        }
+      }
+    },
+    "Your opponent is waiting. If you do not go on within %@, the game counts as given up." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Gegner wartet. Geht es nicht innerhalb von %@ weiter, gilt das Spiel als aufgegeben."
+          }
+        }
+      }
+    },
+    "Your pause lasted longer than 2 minutes – the game counts as given up." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Pause hat länger als 2 Minuten gedauert – das Spiel gilt als aufgegeben."
           }
         }
       }

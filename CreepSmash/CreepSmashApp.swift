@@ -25,6 +25,7 @@ struct CreepSmashApp: App {
         UINavigationBar.appearance().scrollEdgeAppearance = bar
         UINavigationBar.appearance().compactAppearance = bar
         SoundManager.shared.prepareSession()
+        MapThumbnails.preload()
     }
 
     var body: some Scene {
@@ -182,6 +183,21 @@ struct RootView: View {
             controller.autopilot = Bot(player: match.localPlayer, level: .normal, map: match.game.map)
         }
         self.controller = controller
+        // Tests of the pause in the Simulator: "-pauseAfter 15" pauses after 15 s, "-resumeAfter 10" goes on 10 s later.
+        let args = ProcessInfo.processInfo.arguments
+        func seconds(_ flag: String) -> Double? {
+            guard let i = args.firstIndex(of: flag), i + 1 < args.count else { return nil }
+            return Double(args[i + 1])
+        }
+        if let pauseAfter = seconds("-pauseAfter") {
+            let resumeAfter = seconds("-resumeAfter")
+            DispatchQueue.main.asyncAfter(deadline: .now() + pauseAfter) { [weak controller] in
+                controller?.setPaused(true)
+                if let resumeAfter {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + resumeAfter) { controller?.setPaused(false) }
+                }
+            }
+        }
     }
 
     /// Launch arguments for screenshots and tests in the Simulator:
@@ -239,8 +255,8 @@ struct RootView: View {
             matchmaker.join(code: code, name: networkName)
         } else if args.contains("-quick") {
             matchmaker.quick(name: networkName)
-        } else if args.contains("-twoplayer") {
-            showTwoPlayer = true
         }
+        // Also together with -quick / -join, to see the search (screenshots).
+        if args.contains("-twoplayer") { showTwoPlayer = true }
     }
 }

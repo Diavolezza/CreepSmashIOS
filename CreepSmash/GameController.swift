@@ -65,8 +65,17 @@ final class GameController {
     /// While placing a tower: the cell under the finger or pointer (preview with range circle).
     var aimCell: GridPoint?
     var isPaused = false
+    /// Pause of an online game as shown: who paused, seconds left until the limit, countdown before going on.
+    struct NetPause: Equatable {
+        var byMe: Bool
+        var secondsLeft: Int
+        var countdown: Int?
+    }
+    private(set) var netPause: NetPause?
+    /// Why an online game ended early (shown with the result).
+    private(set) var endNote: String?
     /// The pause came from the opponent (online game).
-    private(set) var pausedByOpponent = false
+    var pausedByOpponent: Bool { netPause.map { !$0.byMe } ?? false }
     /// Online game has been waiting for the opponent for more than half a second.
     private(set) var isWaitingForOpponent = false
     /// Online game is broken (the devices compute different results).
@@ -118,12 +127,6 @@ final class GameController {
         self.playerName = name.isEmpty ? L("You") : name
         if let mode { self.stats = stats ?? GameStats(me: match.localPlayer, mode: mode) }
         updateHUD()
-        network?.onPeerPause = { [weak self] paused in
-            MainActor.assumeIsolated {
-                self?.isPaused = paused
-                self?.pausedByOpponent = paused
-            }
-        }
         network?.onStatusChange = { [weak self] status in
             MainActor.assumeIsolated { self?.networkStatusChanged(status) }
         }
@@ -135,15 +138,32 @@ final class GameController {
         network == nil && game.players[me].isDead
     }
 
-    /// Pause on/off; in an online game for both players.
+    /// Pause on/off. Online the pause applies to both, only the one who paused can continue,
+    /// and the game goes on after a countdown on both devices.
     func setPaused(_ paused: Bool) {
+        if let network {
+            if paused { network.pauseGame() } else { network.resumeGame() }
+            syncNetworkPause()
+            return
+        }
         // Every pause (also when the app goes to the background) saves a game against the computer,
         // so it survives the app being closed.
         if paused { save() }
-        guard paused != isPaused || pausedByOpponent else { return }
         isPaused = paused
-        pausedByOpponent = false
-        network?.sendPause(paused)
+    }
+
+    /// Takes over the pause of the online game (every frame): countdown, time limit, display values.
+    private func syncNetworkPause() {
+        guard let network else { return }
+        network.updatePause()
+        let now = Date()
+        let value = network.pause.map { pause in
+            NetPause(byMe: pause.player == me,
+                     secondsLeft: max(0, Int((NetworkMatch.pauseLimit - now.timeIntervalSince(pause.since)).rounded(.up))),
+                     countdown: pause.resumesAt.map { max(1, Int($0.timeIntervalSince(now).rounded(.up))) })
+        }
+        if value != netPause { netPause = value }
+        if isPaused != (value != nil) { isPaused = value != nil }
     }
 
     /// A game against the computer can be continued later; not demo games, not finished ones.
@@ -197,9 +217,19 @@ final class GameController {
             break
         case .opponentGone:
             isPaused = false
-            pausedByOpponent = false
+            netPause = nil
             isWaitingForOpponent = false
-            if !game.isFinished || game.winner == me { show(L("Your opponent has left the game")) }
+            if !game.isFinished || game.winner == me {
+                endNote = L("Your opponent has left the game")
+                show(L("Your opponent has left the game"))
+            }
+        case let .pauseExpired(loser):
+            isPaused = false
+            netPause = nil
+            isWaitingForOpponent = false
+            endNote = loser == me ? L("Your pause lasted longer than 2 minutes – the game counts as given up.")
+                                  : L("\(hud.opponentName) did not continue within 2 minutes – you win.")
+            show(endNote ?? "")
         case let .desynced(tick):
             connectionProblem = L("The two devices compute differently (tick \(tick)). The game cannot continue.")
         }
@@ -222,6 +252,7 @@ final class GameController {
 
     private func frame(timestamp: CFTimeInterval) {
         defer { lastTimestamp = timestamp }
+        syncNetworkPause()
         guard let last = lastTimestamp, !isPaused, !game.isFinished, !isOutOfLocalGame else { return }
         accumulator += min(timestamp - last, 0.25)
         var steps = 0

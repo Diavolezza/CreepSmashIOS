@@ -151,6 +151,10 @@ struct TwoPlayerView: View {
                     Text(message).font(Theme.mono(14)).foregroundStyle(Theme.text)
                         .multilineTextAlignment(.center).frame(maxWidth: Theme.s(440))
                 }
+                if let notice = matchmaker.versionNotice, !isFailed {
+                    Text(notice).font(Theme.mono(14)).foregroundStyle(Theme.warning)
+                        .multilineTextAlignment(.center).frame(maxWidth: Theme.s(440))
+                }
                 if !matchmaker.detail.isEmpty {
                     Text(matchmaker.detail).font(Theme.mono(11)).foregroundStyle(.gray)
                         .multilineTextAlignment(.center).frame(maxWidth: Theme.s(440))

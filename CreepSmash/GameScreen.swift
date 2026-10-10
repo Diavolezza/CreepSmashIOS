@@ -372,16 +372,37 @@ struct GameScreen: View {
     private var pauseOverlay: some View {
         ZStack {
             Color.black.opacity(0.7).ignoresSafeArea()
-            VStack(spacing: Theme.s(14)) {
+            if let countdown = controller.netPause?.countdown {
+                // Online: both see the countdown before the game goes on.
+                VStack(spacing: Theme.s(10)) {
+                    Text(verbatim: "\(countdown)").font(Theme.pixel(72)).foregroundStyle(Theme.green)
+                    Text(L("The game goes on …")).font(Theme.mono(15)).foregroundStyle(Theme.text)
+                }
+            } else {
+                pausePanel
+            }
+        }
+    }
+
+    private var pausePanel: some View {
+        VStack(spacing: Theme.s(14)) {
                 Text(L("Pause")).font(Theme.pixel(28)).foregroundStyle(Theme.green)
-                if controller.pausedByOpponent {
-                    Text(L("\(controller.hud.opponentName) has paused the game."))
+                if let pause = controller.netPause {
+                    let time = String(format: "%d:%02d", pause.secondsLeft / 60, pause.secondsLeft % 60)
+                    Text(pause.byMe
+                         ? L("Your opponent is waiting. If you do not go on within \(time), the game counts as given up.")
+                         : L("\(controller.hud.opponentName) has paused the game. If the game does not go on within \(time), you win."))
                         .font(Theme.mono(14)).foregroundStyle(Theme.text)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: Theme.s(440))
                 }
                 // Buttons below each other share one width.
                 VStack(spacing: Theme.s(14)) {
-                    Button(L("Resume")) { controller.setPaused(false) }
-                        .buttonStyle(MenuButtonStyle(fill: true))
+                    // Online only the one who paused can go on.
+                    if !controller.pausedByOpponent {
+                        Button(L("Resume")) { controller.setPaused(false) }
+                            .buttonStyle(MenuButtonStyle(fill: true))
+                    }
                     Button(L("Options")) { showOptions = true }
                         .buttonStyle(MenuButtonStyle(color: Theme.text, fill: true))
                     if controller.canSave {
@@ -393,7 +414,6 @@ struct GameScreen: View {
                         .buttonStyle(MenuButtonStyle(color: Theme.warning, fill: true))
                 }
                 .fixedSize(horizontal: true, vertical: false)
-            }
         }
     }
 
@@ -408,7 +428,11 @@ struct GameScreen: View {
                     Text(title)
                         .font(Theme.pixel(24))
                         .foregroundStyle(won ? Theme.green : Theme.warning)
-                    if !won {
+                    if let note = controller.endNote {
+                        Text(note).font(Theme.mono(13)).foregroundStyle(Theme.text)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: Theme.s(300), alignment: .leading)
+                    } else if !won {
                         Text("sad but true").font(Theme.mono(13)).foregroundStyle(Theme.text)
                     }
                     if controller.isGroup, let rank {
