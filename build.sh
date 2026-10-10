@@ -21,6 +21,12 @@ APP="$DERIVED/Build/Products/Debug-iphonesimulator/CreepSmash.app"
 # Number of commits in the earlier history (archive repository); the version counter continues after it.
 VERSION_OFFSET=23
 
+# Writes the string catalog in Xcode's own form (order and layout), so Xcode does not rewrite it
+# after changes made with other tools – otherwise it shows up as changed in git again and again.
+normalize_strings() {
+  swift tools/strings/normalize.swift CreepSmash/Localizable.xcstrings
+}
+
 build() {
   # First word = mode, the rest is passed to the app as launch arguments (e.g. "demo -map neon").
   local mode extra
@@ -41,6 +47,7 @@ build() {
     local n=$(( $(git rev-list --count HEAD) + 1 + VERSION_OFFSET ))
     sed -i '' -E "s/(MARKETING_VERSION = )[0-9.]+;/\10.1.$n;/; s/(CURRENT_PROJECT_VERSION = )[0-9]+;/\1$n;/" CreepSmash.xcodeproj/project.pbxproj
     echo "▸ version 0.1.$n"
+    normalize_strings
     git add -A && git commit -q -F build/commit-msg.txt && git push 2>&1 && git log --oneline -3
     return $?
   fi
@@ -119,6 +126,7 @@ OSA
   fi
   echo "▸ testing the game core"
   (cd CreepSmashCore && swift test 2>&1 | grep -E "error|failed|Executed .* tests" | tail -3)
+  normalize_strings
   echo "▸ building the app for the simulator"
   if ! xcodebuild -project CreepSmash.xcodeproj -scheme CreepSmash \
       -configuration Debug -destination 'generic/platform=iOS Simulator' \
