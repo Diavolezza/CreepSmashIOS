@@ -18,15 +18,7 @@ struct TwoPlayerView: View {
         ZStack {
             Theme.background.ignoresSafeArea()
             VStack(spacing: Theme.s(12)) {
-                HStack {
-                    Button(L("Back"), action: onCancel)
-                        .font(Theme.mono(14, .semibold))
-                        .foregroundStyle(Theme.text)
-                    Spacer()
-                    Text(L("Two-player game"))
-                        .font(Theme.pixel(13))
-                        .foregroundStyle(Theme.green)
-                    Spacer()
+                PageHeader(L("Two-player game"), onBack: onCancel) {
                     HStack(spacing: Theme.s(8)) {
                         Text(L("Name")).font(Theme.mono(13)).foregroundStyle(.gray)
                         TextField(L("Your name"), text: $playerName)

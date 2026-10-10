@@ -282,7 +282,10 @@ struct OptionsView: View {
     @AppStorage("playerName") private var playerName = ""
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            PageHeader(L("Options")) { dismiss() }
+                .padding(.horizontal, Theme.s(20))
+                .padding(.vertical, Theme.s(10))
             Form {
                 Section(L("Player")) {
                     TextField(L("Your name"), text: $playerName)
@@ -320,10 +323,9 @@ struct OptionsView: View {
                 }
             }
             .font(Theme.mono(15))
-            .navigationTitle(L("Options"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("Done")) { dismiss() } } }
+            .scrollContentBackground(.hidden)
         }
+        .background(Theme.background.ignoresSafeArea())
         .preferredColorScheme(.dark)
         .pageSizedSheet()
     }

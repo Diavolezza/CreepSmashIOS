@@ -1,6 +1,14 @@
 import SwiftUI
 import CreepSmashCore
 
+/// Opens or closes a full-screen page at once instead of sliding it in: while sliding, the fine lines of
+/// the small map pictures shimmered (moving by fractions of a pixel), which looked like flickering.
+func withoutSliding(_ change: () -> Void) {
+    var transaction = Transaction()
+    transaction.disablesAnimations = true
+    withTransaction(transaction, change)
+}
+
 struct MenuView: View {
     @Binding var level: Bot.Level
     @Binding var mapID: String
@@ -97,12 +105,12 @@ struct MenuView: View {
         .sheet(isPresented: $showOptions) { OptionsView() }
         .fullScreenCover(isPresented: $showTwoPlayer, onDismiss: { matchmaker.cancel() }) {
             TwoPlayerView(matchmaker: matchmaker, mapID: $mapID, playerName: $playerName,
-                          onCancel: { showTwoPlayer = false })
+                          onCancel: { withoutSliding { showTwoPlayer = false } })
         }
         .fullScreenCover(isPresented: $showSetup) {
             SetupView(level: $level, mapID: $mapID, playerName: $playerName,
-                      onStart: { showSetup = false; onStart() },
-                      onCancel: { showSetup = false })
+                      onStart: { withoutSliding { showSetup = false }; onStart() },
+                      onCancel: { withoutSliding { showSetup = false } })
         }
     }
 }
@@ -125,9 +133,9 @@ extension MenuView {
 
     /// The two large buttons of the start screen.
     @ViewBuilder private var mainButtons: some View {
-        Button(L("Vs. computer")) { showSetup = true }
+        Button(L("Vs. computer")) { withoutSliding { showSetup = true } }
             .buttonStyle(MenuButtonStyle(minWidth: 0, fill: true, shrinks: false))
-        Button(L("Two players")) { showTwoPlayer = true }
+        Button(L("Two players")) { withoutSliding { showTwoPlayer = true } }
             .buttonStyle(MenuButtonStyle(minWidth: 0, fill: true, shrinks: false))
     }
 
@@ -181,17 +189,7 @@ struct SetupView: View {
         ZStack {
             Theme.background.ignoresSafeArea()
             VStack(spacing: Theme.s(14)) {
-                HStack {
-                    Button(L("Back"), action: onCancel)
-                        .font(Theme.mono(14, .semibold))
-                        .foregroundStyle(Theme.text)
-                    Spacer()
-                    Text(L("New game vs. computer"))
-                        .font(Theme.pixel(13))
-                        .foregroundStyle(Theme.green)
-                    Spacer()
-                    Text(L("Back")).font(Theme.mono(14)).hidden()
-                }
+                PageHeader(L("New game vs. computer"), onBack: onCancel)
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: Theme.s(14)) {
@@ -312,7 +310,10 @@ struct RulesView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            PageHeader(L("How to play")) { dismiss() }
+                .padding(.horizontal, Theme.s(20))
+                .padding(.vertical, Theme.s(10))
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.s(14)) {
                     section(L("Goal"), L("Each player has 20 lives. The last player with lives left wins."))
@@ -333,10 +334,8 @@ struct RulesView: View {
             }
             .scrollIndicators(.visible)
             .background(Theme.background)
-            .navigationTitle(L("How to play"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("Done")) { dismiss() } } }
         }
+        .background(Theme.background.ignoresSafeArea())
         .preferredColorScheme(.dark)
         .pageSizedSheet()
     }

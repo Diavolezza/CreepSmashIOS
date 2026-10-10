@@ -153,3 +153,49 @@ extension View {
         }
     }
 }
+
+/// Head of every page and window: "‹ Back" on the left, the title in the middle, optional content on the
+/// right – the same on all pages. Esc closes the page (Mac, iPad with keyboard).
+struct PageHeader<Trailing: View>: View {
+    let title: String
+    let onBack: () -> Void
+    @ViewBuilder var trailing: () -> Trailing
+
+    init(_ title: String, onBack: @escaping () -> Void, @ViewBuilder trailing: @escaping () -> Trailing) {
+        self.title = title
+        self.onBack = onBack
+        self.trailing = trailing
+    }
+
+    var body: some View {
+        ZStack {
+            Text(title)
+                .font(Theme.pixel(13))
+                .foregroundStyle(Theme.green)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .padding(.horizontal, Theme.s(100))
+            HStack {
+                Button(action: onBack) {
+                    HStack(spacing: Theme.s(4)) {
+                        Image(systemName: "chevron.left").font(.system(size: Theme.s(13), weight: .bold))
+                        Text(L("Back")).font(Theme.mono(14, .semibold))
+                    }
+                    .foregroundStyle(Theme.text)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
+                Spacer(minLength: 0)
+                trailing()
+            }
+        }
+        .frame(minHeight: Theme.s(30))
+    }
+}
+
+extension PageHeader where Trailing == EmptyView {
+    init(_ title: String, onBack: @escaping () -> Void) {
+        self.init(title, onBack: onBack) { EmptyView() }
+    }
+}

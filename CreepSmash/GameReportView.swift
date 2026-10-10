@@ -44,7 +44,10 @@ struct GameReportView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            PageHeader(L("Evaluation")) { dismiss() }
+                .padding(.horizontal, Theme.s(20))
+                .padding(.vertical, Theme.s(10))
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.s(14)) {
                     header
@@ -76,10 +79,8 @@ struct GameReportView: View {
                 .padding(.vertical, Theme.s(12))
             }
             .background(Theme.background)
-            .navigationTitle(L("Evaluation"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("Done")) { dismiss() } } }
         }
+        .background(Theme.background.ignoresSafeArea())
         .preferredColorScheme(.dark)
         .pageSizedSheet()
     }

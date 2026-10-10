@@ -12,7 +12,10 @@ struct CreditsView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            PageHeader(L("Credits")) { dismiss() }
+                .padding(.horizontal, Theme.s(20))
+                .padding(.vertical, Theme.s(10))
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.s(18)) {
                     HStack(alignment: .center, spacing: Theme.s(16)) {
@@ -51,10 +54,8 @@ struct CreditsView: View {
                 .padding(.vertical, Theme.s(14))
             }
             .background(Theme.background)
-            .navigationTitle(L("Credits"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("Done")) { dismiss() } } }
         }
+        .background(Theme.background.ignoresSafeArea())
         .preferredColorScheme(.dark)
         .pageSizedSheet()
     }

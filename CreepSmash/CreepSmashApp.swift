@@ -175,7 +175,7 @@ struct RootView: View {
     }
 
     private func startOnline(_ match: NetworkMatch) {
-        showTwoPlayer = false
+        withoutSliding { showTwoPlayer = false }
         controller?.stop()
         let autopilot = ProcessInfo.processInfo.arguments.contains("-autopilot")
         let controller = GameController(match: match, mode: autopilot ? nil : .online)
@@ -258,5 +258,9 @@ struct RootView: View {
         }
         // Also together with -quick / -join, to see the search (screenshots).
         if args.contains("-twoplayer") { showTwoPlayer = true }
+        // Opens the page a few seconds after the start, like a tap on the button (animation tests).
+        if let delay = value(after: "-twoplayerAfter").flatMap(Double.init) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { withoutSliding { showTwoPlayer = true } }
+        }
     }
 }

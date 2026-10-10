@@ -17,7 +17,10 @@ struct HallOfFameView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            PageHeader(L("Records")) { dismiss() }
+                .padding(.horizontal, Theme.s(20))
+                .padding(.vertical, Theme.s(10))
             VStack(spacing: Theme.s(12)) {
                 Picker("", selection: $tab) {
                     Text(L("Leaderboard")).tag(Tab.leaderboard)
@@ -38,10 +41,8 @@ struct HallOfFameView: View {
             .padding(.horizontal, Theme.s(20))
             .padding(.top, Theme.s(8))
             .background(Theme.background)
-            .navigationTitle(L("Records"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("Done")) { dismiss() } } }
         }
+        .background(Theme.background.ignoresSafeArea())
         .preferredColorScheme(.dark)
         .pageSizedSheet()
     }
