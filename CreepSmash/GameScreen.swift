@@ -34,8 +34,9 @@ struct GameScreen: View {
         .overlay { if case let .finished(rank) = controller.hud.phase { finishedOverlay(rank: rank) } }
         .overlay { if let problem = controller.connectionProblem { problemOverlay(problem) } }
         .sheet(isPresented: $showOptions) { OptionsView() }
-        .sheet(isPresented: $showRecords) { HallOfFameView(tab: .statistics) }
-        .sheet(isPresented: $showReport) {
+        // Records and evaluation fill the screen: over the game behind them they were hard to read.
+        .fullScreenCover(isPresented: $showRecords) { HallOfFameView(tab: .statistics) }
+        .fullScreenCover(isPresented: $showReport) {
             if let summary = controller.summary {
                 GameReportView(summary: summary, myName: controller.hud.myName)
             }
@@ -477,11 +478,11 @@ struct GameScreen: View {
                         Button(L("Play again")) { onRestart() }.buttonStyle(MenuButtonStyle(fill: true))
                     }
                     if controller.summary != nil {
-                        Button(L("Evaluation")) { showReport = true }
+                        Button(L("Evaluation")) { withoutSliding { showReport = true } }
                             .buttonStyle(MenuButtonStyle(color: Theme.gold, fill: true))
                     }
                     // The overall statistics as a sheet over the result; closing it returns here.
-                    Button(L("Records")) { showRecords = true }
+                    Button(L("Records")) { withoutSliding { showRecords = true } }
                         .buttonStyle(MenuButtonStyle(color: Theme.gold, fill: true))
                     Button(L("Back to menu")) { leave() }.buttonStyle(MenuButtonStyle(color: Theme.text, fill: true))
                 }

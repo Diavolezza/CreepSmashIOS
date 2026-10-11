@@ -18,7 +18,7 @@ struct HallOfFameView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PageHeader(L("Records")) { dismiss() }
+            PageHeader(L("Records")) { withoutSliding { dismiss() } }
                 .padding(.horizontal, Theme.s(20))
                 .padding(.vertical, Theme.s(10))
             VStack(spacing: Theme.s(12)) {
@@ -37,6 +37,8 @@ struct HallOfFameView: View {
                     }
                 }
                 .scrollIndicators(.visible)
+                // Full screen on a wide Mac window: the tiles do not stretch over the whole width.
+                .frame(maxWidth: Theme.s(900))
             }
             .padding(.horizontal, Theme.s(20))
             .padding(.top, Theme.s(8))
@@ -107,7 +109,7 @@ struct HallOfFameView: View {
         ]
         return VStack(spacing: Theme.s(12)) {
             if r.lastGame != nil {
-                Button { showLastGame = true } label: {
+                Button { withoutSliding { showLastGame = true } } label: {
                     Label(L("Evaluate the last game"), systemImage: "chart.xyaxis.line")
                 }
                 .buttonStyle(MenuButtonStyle(color: Theme.gold, minWidth: 0, fill: true))
@@ -117,7 +119,7 @@ struct HallOfFameView: View {
                 ForEach(cards, id: \.title) { $0 }
             }
         }
-        .sheet(isPresented: $showLastGame) {
+        .fullScreenCover(isPresented: $showLastGame) {
             if let last = r.lastGame { GameReportView(summary: last, myName: L("You")) }
         }
     }

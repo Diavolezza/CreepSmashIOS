@@ -45,7 +45,7 @@ struct GameReportView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PageHeader(L("Evaluation")) { dismiss() }
+            PageHeader(L("Evaluation")) { withoutSliding { dismiss() } }
                 .padding(.horizontal, Theme.s(20))
                 .padding(.vertical, Theme.s(10))
             ScrollView {

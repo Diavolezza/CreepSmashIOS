@@ -126,11 +126,13 @@ struct ControlTile: View {
     var name: String?
 
     var body: some View {
-        // With the name if there is room – first with the large symbol, then with a smaller one.
+        // With the name if there is room – first with the large symbol, then with a smaller one, then
+        // (narrow tiles on the iPhone) the name on top and symbol and price side by side below it.
         ViewThatFits(in: .vertical) {
             if let name {
                 content(symbol: Theme.s(40), name: name)
                 content(symbol: Theme.s(22), name: name)
+                compact(symbol: Theme.s(18), name: name)
             }
             content(symbol: Theme.s(40), name: nil)
         }
@@ -140,6 +142,28 @@ struct ControlTile: View {
         .overlay(RoundedRectangle(cornerRadius: Theme.s(5))
             .stroke(selected ? Theme.green : (affordable ? Theme.dimGreen.opacity(0.7) : Color.gray.opacity(0.25)),
                     lineWidth: selected ? Theme.s(2) : 1))
+    }
+
+    private func compact(symbol: CGFloat, name: String) -> some View {
+        VStack(spacing: Theme.s(2)) {
+            Text(name)
+                .font(Theme.mono(10))
+                .foregroundStyle(affordable ? Theme.text : Color.gray.opacity(0.7))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            HStack(spacing: Theme.s(3)) {
+                Image(affordable ? image : image + "disable")
+                    .interpolation(.high)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: symbol, height: symbol)
+                Text(Format.short(price))
+                    .font(Theme.mono(10, .semibold))
+                    .foregroundStyle(affordable ? priceColor : Color.gray.opacity(0.7))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+        }
     }
 
     private func content(symbol: CGFloat, name: String?) -> some View {

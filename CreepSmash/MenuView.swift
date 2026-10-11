@@ -62,7 +62,7 @@ struct MenuView: View {
         }
         .overlay(alignment: .topLeading) {
             HStack(spacing: Theme.s(10)) {
-                cornerButton(L("Records"), action: { showRecords = true }) {
+                cornerButton(L("Records"), action: { withoutSliding { showRecords = true } }) {
                     Image(systemName: "trophy.fill").foregroundStyle(Theme.gold)
                 }
                 cornerButton(L("How to play"), action: { showRules = true }) {
@@ -85,7 +85,7 @@ struct MenuView: View {
             .padding(.top, Theme.s(12))
             .padding(.trailing, Theme.s(20))
         }
-        .sheet(isPresented: $showRecords) { HallOfFameView() }
+        .fullScreenCover(isPresented: $showRecords) { HallOfFameView() }
         .sheet(isPresented: $showRules) { RulesView() }
         .sheet(isPresented: $showCredits) { CreditsView() }
         // Launch arguments "-credits" and "-setup" open those pages (screenshots).

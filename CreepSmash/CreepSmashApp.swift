@@ -84,8 +84,8 @@ struct RootView: View {
             }
         }
         .environment(\.locale, AppLanguage.current.locale)
-        .sheet(isPresented: $showRecords) { HallOfFameView() }
-        .sheet(isPresented: $showReport) {
+        .fullScreenCover(isPresented: $showRecords) { HallOfFameView() }
+        .fullScreenCover(isPresented: $showReport) {
             if let last = ProgressStore.shared.record.lastGame { GameReportView(summary: last, myName: displayName) }
         }
         .onAppear {
