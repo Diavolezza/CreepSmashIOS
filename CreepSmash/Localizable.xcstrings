@@ -2409,12 +2409,12 @@
         }
       }
     },
-    "Version %@" : {
+    "Version %@ · build %@" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Version %@"
+            "value" : "Version %1$@ · Build %2$@"
           }
         }
       }

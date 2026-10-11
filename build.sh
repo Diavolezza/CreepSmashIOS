@@ -18,7 +18,13 @@ cd "$(dirname "$0")"
 
 DERIVED=build/DerivedData
 APP="$DERIVED/Build/Products/Debug-iphonesimulator/CreepSmash.app"
-# Number of commits in the earlier history (archive repository); the version counter continues after it.
+# Version scheme: 0.M.P (build B).
+# M (minor) changes with every incompatible change: M = NetMessage.protocolVersion + MINOR_OFFSET
+#   (protocol 5 = 0.2), so two devices with the same minor version always play together.
+# P (patch) counts the commits within a minor version: the first commit of a minor version gets
+#   the tag v0.M.0 and patch 0, every further commit one more.
+# B (build) counts all commits; the earlier history (archive repository) had VERSION_OFFSET commits.
+MINOR_OFFSET=-3
 VERSION_OFFSET=23
 
 # Writes the string catalog in Xcode's own form (order and layout), so Xcode does not rewrite it
@@ -41,14 +47,26 @@ build() {
   if [ "$mode" = "commit" ]; then
     # Commit everything with the message in build/commit-msg.txt and push (runs with your git identity).
     [ -s build/commit-msg.txt ] || { echo "** build/commit-msg.txt is missing **"; return 1; }
-    # Version 0.1.N with N = number of this commit, written into the project before committing.
-    # VERSION_OFFSET: commits of the earlier history (kept in the archive repository), so the
-    # counter continues after the history was started anew.
-    local n=$(( $(git rev-list --count HEAD) + 1 + VERSION_OFFSET ))
-    sed -i '' -E "s/(MARKETING_VERSION = )[0-9.]+;/\10.1.$n;/; s/(CURRENT_PROJECT_VERSION = )[0-9]+;/\1$n;/" CreepSmash.xcodeproj/project.pbxproj
-    echo "▸ version 0.1.$n"
+    # Version 0.M.P (build B), see MINOR_OFFSET above, written into the project before committing.
+    local protocol minor patch n tag
+    protocol=$(grep -E 'static let protocolVersion = [0-9]+' CreepSmashCore/Sources/CreepSmashCore/Network.swift | grep -oE '[0-9]+$')
+    [ -n "$protocol" ] || { echo "** protocol version not found **"; return 1; }
+    minor=$(( protocol + MINOR_OFFSET ))
+    tag="v0.$minor.0"
+    if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+      patch=$(( $(git rev-list --count "$tag"..HEAD) + 1 ))
+    else
+      patch=0                      # first commit of a new minor version
+    fi
+    n=$(( $(git rev-list --count HEAD) + 1 + VERSION_OFFSET ))
+    sed -i '' -E "s/(MARKETING_VERSION = )[0-9.]+;/\10.$minor.$patch;/; s/(CURRENT_PROJECT_VERSION = )[0-9]+;/\1$n;/" CreepSmash.xcodeproj/project.pbxproj
+    echo "▸ version 0.$minor.$patch (build $n, protocol $protocol)"
     normalize_strings
-    git add -A && git commit -q -F build/commit-msg.txt && git push 2>&1 && git log --oneline -3
+    git add -A && git commit -q -F build/commit-msg.txt || return 1
+    if [ "$patch" = 0 ]; then
+      git tag -a "$tag" -m "Version 0.$minor (protocol $protocol)" && echo "▸ tag $tag"
+    fi
+    git push 2>&1 && { [ "$patch" != 0 ] || git push origin "$tag" 2>&1; } && git log --oneline -3
     return $?
   fi
   if [ "$mode" = "mac" ]; then

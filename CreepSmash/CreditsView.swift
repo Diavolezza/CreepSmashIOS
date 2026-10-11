@@ -2,8 +2,15 @@ import SwiftUI
 
 /// Version of the app as shown to the player: 0.1.N, N counts the commits (set by build.sh commit).
 enum AppVersion {
+    /// 0.M.P – M changes with every change that makes the app incompatible with the previous version,
+    /// P counts the changes within it.
     static var text: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1"
+    }
+
+    /// Build number: counts every change.
+    static var build: String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
     }
 }
 
@@ -24,7 +31,7 @@ struct CreditsView: View {
                             .aspectRatio(contentMode: .fit)
                             .frame(maxWidth: Theme.s(260))
                         Spacer(minLength: 0)
-                        Text(L("Version \(AppVersion.text)"))
+                        Text(L("Version \(AppVersion.text) · build \(AppVersion.build)"))
                             .foregroundStyle(.gray)
                     }
                     section(L("Original")) {

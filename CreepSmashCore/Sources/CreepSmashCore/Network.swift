@@ -55,7 +55,7 @@ public enum NetMessage: Codable, Equatable, Sendable {
     case leave
 
     /// Must be increased on every change to rules, simulation or messages – only identical
-    /// versions compute identically.
+    /// versions compute identically. Its minor number follows it: 0.(protocolVersion − 3).x, see build.sh.
     public static let protocolVersion = 5
 
     public func encoded() -> Data {
