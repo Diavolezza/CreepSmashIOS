@@ -288,7 +288,7 @@ final class NearbyFinder {
         case nil: search = "–"
         default: search = "…"
         }
-        onStatus?("visible: \(advertised) · search: \(search) · found: \(found) · connecting: \(attempts.count)")
+        onStatus?(L("visible: \(advertised) · search: \(search) · found: \(found) · connecting: \(attempts.count)"))
     }
 
     private func fail(_ message: String) {

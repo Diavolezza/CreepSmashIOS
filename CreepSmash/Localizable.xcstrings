@@ -2459,6 +2459,16 @@
         }
       }
     },
+    "visible: %@ · search: %@ · found: %lld · connecting: %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "sichtbar: %1$@ · Suche: %2$@ · gefunden: %3$lld · verbinde: %4$lld"
+          }
+        }
+      }
+    },
     "Volcano" : {
       "extractionState" : "stale",
       "localizations" : {
