@@ -245,7 +245,9 @@ struct RootView: View {
                                           date: Date().addingTimeInterval(Double(-i) * 86_400),
                                           opponentName: "Computer · " + level.label,
                                           damageDealt: i == 13 ? 36 * 36 * 36 * 40 : nil,
-                                          healthSent: i == 13 ? 36 * 36 * 36 * 38 : nil)
+                                          healthSent: i == 13 ? 36 * 36 * 36 * 38 : nil,
+                                          towerValue: i == 13 ? 38_500 : nil, towerSpent: i == 13 ? 41_200 : nil,
+                                          towerBusyPermille: i == 13 ? 386 : nil)
                 _ = ProgressStore.shared.add(summary, playerName: displayName)
             }
         }

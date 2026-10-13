@@ -108,7 +108,10 @@ struct GameReportView: View {
             ("heart.slash.fill", L("Lives lost"), "\(summary.livesLost)"),
         ] + (summary.healthSent.map { [("arrow.up.forward.circle.fill", L("Attack strength"), Format.short($0))] } ?? [])
           + (summary.damageDealt.map { [("scope", L("Damage by towers"), Format.short($0))] } ?? [])
-        // Six tiles (four in older records): all in one row, in two rows or in two columns –
+          // Efficiency of the defense (recorded since this version; both or none).
+          + (summary.damagePerCredit.map { [("leaf.fill", L("Damage per tower credit"), Format.credits($0))] } ?? [])
+          + (summary.towerBusyPermille.map { [("gauge", L("Tower utilization"), "\(($0 + 5) / 10) %")] } ?? [])
+        // Eight tiles (six or four in older records): all in one row, in two rows or in two columns –
         // never a single tile left over.
         return ViewThatFits(in: .horizontal) {
             tiles(items, columns: items.count)

@@ -801,6 +801,16 @@
         }
       }
     },
+    "Damage per tower credit" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schaden je Turm-Credit"
+          }
+        }
+      }
+    },
     "Date" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -878,6 +888,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Leicht"
+          }
+        }
+      }
+    },
+    "Efficient" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effizient"
           }
         }
       }
@@ -1590,6 +1610,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nächster"
+          }
+        }
+      }
+    },
+    "No idling" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein Leerlauf"
           }
         }
       }
@@ -2525,6 +2555,16 @@
         }
       }
     },
+    "Tower utilization" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turm-Auslastung"
+          }
+        }
+      }
+    },
     "Tower value" : {
       "localizations" : {
         "de" : {
@@ -2776,6 +2816,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Gewinne %@ Spiele in Folge"
+          }
+        }
+      }
+    },
+    "Win %@ games with at least %lld damage per tower credit" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gewinne %1$@ Spiele mit mindestens %2$lld Schaden je Turm-Credit"
+          }
+        }
+      }
+    },
+    "Win %@ games with your towers busy at least %lld %% of the time" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gewinne %1$@ Spiele, in denen deine Türme mindestens %2$lld %% der Zeit arbeiten"
           }
         }
       }

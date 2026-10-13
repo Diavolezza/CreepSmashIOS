@@ -87,6 +87,18 @@ public struct GameSummary: Codable, Equatable, Sendable {
     public var healthSent: Int?
     /// What the own towers standing at the end cost, upgrades included (older records: nil).
     public var towerValue: Int?
+    /// Credits put into towers over the whole game: building and upgrades, minus refunds for sold ones
+    /// (older records: nil).
+    public var towerSpent: Int?
+    /// Utilization of the own towers in per mille: the share of the time they were ready in which they were
+    /// busy shooting or reloading (older records: nil).
+    public var towerBusyPermille: Int?
+
+    /// Damage done per credit put into towers (efficiency of the defense); nil without the values.
+    public var damagePerCredit: Int? {
+        guard let damage = damageDealt, let spent = towerSpent, spent > 0 else { return nil }
+        return damage / spent
+    }
 
     public var seconds: Int { durationTicks * Rules.standard.tickMilliseconds / 1000 }
 
@@ -94,7 +106,7 @@ public struct GameSummary: Codable, Equatable, Sendable {
                 maxIncome: Int, creepsSent: Int, creepsKilled: Int, towersBuilt: Int, builtUltimate: Bool,
                 sentColossus: Bool, samples: [GameSample], date: Date, opponentName: String? = nil,
                 damageDealt: Int? = nil, healthSent: Int? = nil, playerNames: [String]? = nil, me: Int? = nil,
-                towerValue: Int? = nil) {
+                towerValue: Int? = nil, towerSpent: Int? = nil, towerBusyPermille: Int? = nil) {
         self.mode = mode
         self.mapID = mapID
         self.won = won
@@ -115,6 +127,8 @@ public struct GameSummary: Codable, Equatable, Sendable {
         self.playerNames = playerNames
         self.me = me
         self.towerValue = towerValue
+        self.towerSpent = towerSpent
+        self.towerBusyPermille = towerBusyPermille
     }
 }
 
@@ -130,6 +144,11 @@ public struct GameStats: Sendable {
     private(set) var builtUltimate = false
     private(set) var sentColossus = false
     private(set) var samples: [GameSample] = []
+    /// Building and upgrades minus refunds.
+    private(set) var towerSpent = 0
+    /// Tower-ticks in which an own tower was ready, and in which it was busy (shot or reloading).
+    private(set) var readyTicks = 0
+    private(set) var busyTicks = 0
 
     public init(me: Int, mode: GameMode) {
         self.me = me
@@ -140,6 +159,7 @@ public struct GameStats: Sendable {
     public mutating func observe(_ game: Game) {
         let board = game.players[me]
         maxIncome = max(maxIncome, board.income)
+        readyTicks += board.towers.filter(\.activity.isReady).count
         for event in game.events {
             switch event {
             case let .creepKilled(player, _, _, _, _, _) where player == me:
@@ -149,9 +169,21 @@ public struct GameStats: Sendable {
                 if type == .fatColossus { sentColossus = true }
             case let .towerBuilt(player, towerId) where player == me:
                 towersBuilt += 1
-                if board.tower(id: towerId)?.kind == .ultimate { builtUltimate = true }
-            case let .towerUpgraded(player, towerId, _) where player == me:
-                if board.tower(id: towerId)?.kind == .ultimate { builtUltimate = true }
+                if let tower = board.tower(id: towerId) {
+                    towerSpent += tower.totalPrice
+                    if tower.kind == .ultimate { builtUltimate = true }
+                }
+            case let .towerUpgraded(player, towerId, level) where player == me:
+                if let tower = board.tower(id: towerId) {
+                    towerSpent += tower.kind.stats(level: level).price
+                    if tower.kind == .ultimate { builtUltimate = true }
+                }
+            case let .towerSold(player, _, refund) where player == me:
+                towerSpent -= refund
+            case let .laserShot(player, towerId, _, _) where player == me:
+                busyTicks += board.tower(id: towerId)?.stats.reloadTicks ?? 0
+            case let .rocketLaunched(player, towerId) where player == me:
+                busyTicks += board.tower(id: towerId)?.stats.reloadTicks ?? 0
             case let .creepEscaped(player, _, _, _) where player == me:
                 livesLost += 1
             case let .incomePaid(player, _) where player == me:
@@ -176,7 +208,8 @@ public struct GameStats: Sendable {
                            opponentName: opponentName, damageDealt: game.players[me].damageDealt,
                            healthSent: game.players[me].healthSent,
                            playerNames: playerNames ?? game.players.map(\.name), me: me,
-                           towerValue: game.players[me].towerValue)
+                           towerValue: game.players[me].towerValue, towerSpent: towerSpent,
+                           towerBusyPermille: readyTicks > 0 ? min(1000, busyTicks * 1000 / readyTicks) : nil)
     }
 
     private func sample(_ game: Game) -> GameSample? {
@@ -226,6 +259,9 @@ public struct PlayerRecord: Codable, Equatable, Sendable {
     public var creepsKilled = 0
     public var towersBuilt = 0
     public var bestIncome = 0
+    /// Wins with an efficient or a busy defense (optional: older records do not have them).
+    public var efficientWins: Int?
+    public var busyWins: Int?
     public var builtUltimate = false
     public var sentColossus = false
     public var mapsWon: Set<String> = []
@@ -238,6 +274,12 @@ public struct PlayerRecord: Codable, Equatable, Sendable {
     public static let leaderboardSize = 10
     /// A win in at most this many seconds of play counts as a fast win.
     public static let fastWinSeconds = 8 * 60
+    /// A win with at least this much damage per credit put into towers counts as efficient
+    /// (the computers reach about 50 to 70).
+    public static let efficientDamagePerCredit = 80
+    /// A win in which the towers were busy at least this share of the time (per mille) counts as one
+    /// without idling (the computers' towers are busy about 15 to 30 % of the time).
+    public static let busyPermille = 350
 
     public init() {}
 
@@ -300,6 +342,8 @@ public struct PlayerRecord: Codable, Equatable, Sendable {
             if game.livesLost == 0 { flawlessWins += 1 }
             if game.livesLeft == 1 { closeWins += 1 }
             if game.seconds <= Self.fastWinSeconds { fastWins += 1 }
+            if (game.damagePerCredit ?? 0) >= Self.efficientDamagePerCredit { efficientWins = (efficientWins ?? 0) + 1 }
+            if (game.towerBusyPermille ?? 0) >= Self.busyPermille { busyWins = (busyWins ?? 0) + 1 }
         } else {
             currentStreak = 0
         }
@@ -341,6 +385,8 @@ public struct Achievement: Sendable {
         Achievement(id: "flawless", tiers: [1, 10]) { $0.flawlessWins },
         Achievement(id: "closeCall", tiers: [1]) { $0.closeWins },
         Achievement(id: "fastWin", tiers: [1, 10]) { $0.fastWins },
+        Achievement(id: "efficient", tiers: [1, 10]) { $0.efficientWins ?? 0 },
+        Achievement(id: "busy", tiers: [1, 10]) { $0.busyWins ?? 0 },
         Achievement(id: "allMaps", tiers: [GameMap.all.count]) { r in GameMap.all.filter { r.mapsWon.contains($0.id) }.count },
         Achievement(id: "streak", tiers: [3, 5, 10]) { $0.bestStreak },
         Achievement(id: "onlineWins", tiers: [1, 10, 50]) { $0.onlineWins },
