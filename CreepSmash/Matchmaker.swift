@@ -129,6 +129,17 @@ final class Matchmaker {
         lister = finder
     }
 
+    /// Screenshots: made-up open rounds (the list stops listing real ones).
+    func showSampleRounds() {
+        lister?.stop()
+        lister = nil
+        let maps = GameMap.all.map(\.id)
+        openGames = ["Anna", "Bert", "Cleo", "Dora", "Emil", "Fritz", "Greta", "Hanna", "Ida"].enumerated().map { i, name in
+            OpenGame(code: "SAMP\(i)", hostName: name, mapID: maps[i % maps.count], taken: i % 4 + 1, seats: 4,
+                     version: i == 2 ? NetMessage.protocolVersion + 1 : NetMessage.protocolVersion)
+        }
+    }
+
     func stopListing() {
         lister?.stop()
         lister = nil

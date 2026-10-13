@@ -170,29 +170,60 @@ struct PageHeader<Trailing: View>: View {
     }
 
     var body: some View {
-        ZStack {
+        HeaderLayout(spacing: Theme.s(12)) {
+            Button(action: onBack) {
+                HStack(spacing: Theme.s(4)) {
+                    Image(systemName: "chevron.left").font(.system(size: Theme.s(13), weight: .bold))
+                    Text(L("Back")).font(Theme.mono(14, .semibold))
+                }
+                .foregroundStyle(Theme.text)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(.cancelAction)
             Text(title)
                 .font(Theme.pixel(13))
                 .foregroundStyle(Theme.green)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
-                .padding(.horizontal, Theme.s(100))
-            HStack {
-                Button(action: onBack) {
-                    HStack(spacing: Theme.s(4)) {
-                        Image(systemName: "chevron.left").font(.system(size: Theme.s(13), weight: .bold))
-                        Text(L("Back")).font(Theme.mono(14, .semibold))
-                    }
-                    .foregroundStyle(Theme.text)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.cancelAction)
-                Spacer(minLength: 0)
-                trailing()
-            }
+            trailing()
         }
         .frame(minHeight: Theme.s(30))
+    }
+}
+
+/// Header row: first view on the left, last view on the right, the middle one (the title) centered on
+/// the page – or, where the sides leave too little room for that, centered between them, so it never
+/// runs into them.
+private struct HeaderLayout: Layout {
+    var spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        return CGSize(width: proposal.width ?? sizes.map(\.width).reduce(0, +) + 2 * spacing,
+                      height: sizes.map(\.height).max() ?? 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        // Without trailing content (EmptyView) there are only two subviews.
+        guard subviews.count >= 2 else { return }
+        let lead = subviews[0].sizeThatFits(.unspecified)
+        let title = subviews[1].sizeThatFits(.unspecified)
+        let trail = subviews.count > 2 ? subviews[2].sizeThatFits(.unspecified) : .zero
+        subviews[0].place(at: CGPoint(x: bounds.minX, y: bounds.midY), anchor: .leading, proposal: .unspecified)
+        if subviews.count > 2 {
+            subviews[2].place(at: CGPoint(x: bounds.maxX, y: bounds.midY), anchor: .trailing, proposal: .unspecified)
+        }
+        let side = max(lead.width, trail.width) + spacing
+        let centered = bounds.width - 2 * side
+        if centered >= title.width {
+            subviews[1].place(at: CGPoint(x: bounds.midX, y: bounds.midY), anchor: .center,
+                              proposal: ProposedViewSize(width: centered, height: bounds.height))
+        } else {
+            let left = bounds.minX + lead.width + spacing, right = bounds.maxX - trail.width - spacing
+            subviews[1].place(at: CGPoint(x: (left + right) / 2, y: bounds.midY), anchor: .center,
+                              proposal: ProposedViewSize(width: max(0, right - left), height: bounds.height))
+        }
     }
 }
 

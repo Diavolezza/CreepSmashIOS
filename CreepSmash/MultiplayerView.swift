@@ -9,6 +9,8 @@ struct MultiplayerView: View {
     @Binding var playerName: String
     let onCancel: () -> Void
     @State private var code = ""
+    /// The code is being typed: a small panel at the top with the field, above the keyboard.
+    @State private var enteringCode = false
     @FocusState private var codeFocused: Bool
 
     /// Without a name an empty one is sent; the other devices then show "Opponent" or "Player n".
@@ -30,20 +32,35 @@ struct MultiplayerView: View {
                             .submitLabel(.done)
                     }
                 }
-                // Landscape: the three ways side by side; portrait (iPad): one below the other.
+                // Landscape: the three ways side by side. Portrait (iPad): quick game and opening side by side,
+                // joining below them with the rest of the height for the list of open rounds.
                 GeometryReader { geo in
                     if geo.size.height > geo.size.width {
-                        ScrollView {
-                            VStack(spacing: Theme.s(12)) { panels }
+                        VStack(spacing: Theme.s(12)) {
+                            HStack(alignment: .top, spacing: Theme.s(12)) {
+                                quickPanel
+                                openPanel
+                            }
+                            .fixedSize(horizontal: false, vertical: true)
+                            joinPanel
                         }
                     } else {
-                        HStack(alignment: .top, spacing: Theme.s(12)) { panels }
+                        HStack(alignment: .top, spacing: Theme.s(12)) {
+                            quickPanel
+                            openPanel
+                            joinPanel
+                        }
                     }
                 }
             }
             .padding(.horizontal, Theme.s(24))
             .padding(.vertical, Theme.s(10))
+            // The keyboard does not squeeze the tiles; the code is typed in its own panel above it.
+            .ignoresSafeArea(.keyboard)
 
+            if enteringCode {
+                codeEntry
+            }
             if matchmaker.state != .idle {
                 statusOverlay
             }
@@ -51,17 +68,26 @@ struct MultiplayerView: View {
         .onAppear {
             if GameMap.named(mapID) == nil { mapID = GameMap.all[0].id }
             matchmaker.listGames()
+            // Screenshots: "-enterCode" opens the code entry, "-sampleRounds" fills the list with made-up rounds.
+            if ProcessInfo.processInfo.arguments.contains("-enterCode") { enteringCode = true }
+            if ProcessInfo.processInfo.arguments.contains("-sampleRounds") { matchmaker.showSampleRounds() }
         }
         .onDisappear { matchmaker.stopListing() }
     }
 
-    @ViewBuilder private var panels: some View {
+    // Buttons in the tiles keep their full height and font size (one size on the whole page): when a tile
+    // is short of room, the other contents give way.
+    private var quickPanel: some View {
         panel(L("Quick game for two"), L("Against someone who is searching right now. The map is drawn at random.")) {
             Spacer(minLength: 0)
             Button(L("Find opponent")) { matchmaker.quick(name: name) }
-                .buttonStyle(MenuButtonStyle(minWidth: 0, fill: true))
+                .buttonStyle(MenuButtonStyle(minWidth: 0, fill: true, shrinks: false))
+                .layoutPriority(1)
         }
-        panel(L("Open a round"), L("For 2 to 4 players. You choose the map, the others join with your code; free seats can be taken by computers.")) {
+    }
+
+    private var openPanel: some View {
+        panel(L("Open a round"), L("2 to 4 players, you choose the map. Free seats can be taken by computers.")) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Theme.s(8)) {
                     ForEach(GameMap.all, id: \.id) { map in
@@ -72,51 +98,121 @@ struct MultiplayerView: View {
             }
             Spacer(minLength: 0)
             Button(L("Open")) { matchmaker.host(mapID: mapID, name: name) }
-                .buttonStyle(MenuButtonStyle(minWidth: 0, fill: true))
-        }
-        panel(L("Join"), L("Choose a round nearby or enter the code.")) {
-            openGames
-            Spacer(minLength: 0)
-            HStack(spacing: Theme.s(8)) {
-                TextField("CODE", text: $code)
-                    .font(Theme.pixel(18))
-                    .multilineTextAlignment(.center)
-                    .textInputAutocapitalization(.characters)
-                    .autocorrectionDisabled()
-                    .focused($codeFocused)
-                    .submitLabel(.join)
-                    .onSubmit(join)
-                    .padding(.vertical, Theme.s(6))
-                    .background(RoundedRectangle(cornerRadius: Theme.s(6)).stroke(Theme.dimGreen, lineWidth: Theme.s(1)))
-                    .onChange(of: code) { _, new in
-                        let normalized = Matchmaker.normalize(new)
-                        if normalized != new { code = normalized }
-                    }
-                Button(L("Join"), action: join)
-                    .buttonStyle(MenuButtonStyle(minWidth: 0))
-                    .fixedSize()
-                    .disabled(code.count != Matchmaker.codeLength)
-                    .opacity(code.count == Matchmaker.codeLength ? 1 : 0.4)
-            }
+                .buttonStyle(MenuButtonStyle(minWidth: 0, fill: true, shrinks: false))
+                .layoutPriority(1)
         }
     }
 
-    /// The open rounds nearby; a tap joins.
-    @ViewBuilder private var openGames: some View {
-        if matchmaker.openGames.isEmpty {
-            Text(L("No open round nearby yet.")).font(Theme.mono(14)).foregroundStyle(.gray)
-        } else {
-            ScrollView {
-                VStack(spacing: Theme.s(6)) {
-                    ForEach(matchmaker.openGames) { game in
-                        Button { joinListed(game) } label: { openGameRow(game) }
-                            .buttonStyle(.plain)
-                            .disabled(!game.fits || game.taken >= game.seats)
-                    }
+    private var joinPanel: some View {
+        panel(L("Join"), L("Choose a round nearby or enter the code.")) {
+            openGames
+            // Looks like an input field; a tap opens the entry above the keyboard.
+            Button { startCodeEntry() } label: {
+                HStack(spacing: Theme.s(8)) {
+                    Image(systemName: "keyboard")
+                    Text(code.isEmpty ? L("Enter code") : code)
+                        .foregroundStyle(code.isEmpty ? .gray : Theme.green)
+                    Spacer(minLength: 0)
+                }
+                .font(Theme.mono(14))
+                .foregroundStyle(.gray)
+                .padding(.horizontal, Theme.s(10))
+                .padding(.vertical, Theme.s(7))
+                .background(RoundedRectangle(cornerRadius: Theme.s(6)).fill(Color.white.opacity(0.08)))
+                .overlay(RoundedRectangle(cornerRadius: Theme.s(6)).stroke(Theme.dimGreen, lineWidth: Theme.s(1)))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .layoutPriority(1)
+            Button(L("Join"), action: join)
+                .buttonStyle(MenuButtonStyle(minWidth: 0, fill: true, shrinks: false))
+                .disabled(code.count != Matchmaker.codeLength)
+                .opacity(code.count == Matchmaker.codeLength ? 1 : 0.4)
+                .layoutPriority(1)
+        }
+    }
+
+    /// Entering the code: field and buttons at the top, the keyboard below. "Cancel", a tap beside the
+    /// panel or the return key without a complete code close it again.
+    private var codeEntry: some View {
+        ZStack(alignment: .top) {
+            Color.black.opacity(0.75).ignoresSafeArea()
+                .onTapGesture { endCodeEntry() }
+            VStack(spacing: Theme.s(10)) {
+                Text(L("Join with a code")).font(Theme.pixel(12)).foregroundStyle(Theme.green)
+                HStack(spacing: Theme.s(12)) {
+                    TextField(text: $code, prompt: Text(verbatim: "CODE").foregroundStyle(.gray)) { EmptyView() }
+                        .font(Theme.pixel(18))
+                        .foregroundStyle(Theme.green)
+                        .multilineTextAlignment(.center)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                        .focused($codeFocused)
+                        .submitLabel(.join)
+                        .onSubmit { code.count == Matchmaker.codeLength ? join() : endCodeEntry() }
+                        .frame(width: Theme.s(170))
+                        .padding(.vertical, Theme.s(9))
+                        .background(RoundedRectangle(cornerRadius: Theme.s(6)).fill(Color.white.opacity(0.08)))
+                        .overlay(RoundedRectangle(cornerRadius: Theme.s(6)).stroke(Theme.green, lineWidth: Theme.s(1)))
+                        .onChange(of: code) { _, new in
+                            let normalized = Matchmaker.normalize(new)
+                            if normalized != new { code = normalized }
+                        }
+                    Button(L("Join"), action: join)
+                        .buttonStyle(MenuButtonStyle(minWidth: 0, shrinks: false))
+                        .disabled(code.count != Matchmaker.codeLength)
+                        .opacity(code.count == Matchmaker.codeLength ? 1 : 0.4)
+                    Button(L("Cancel")) { endCodeEntry() }
+                        .buttonStyle(MenuButtonStyle(color: Theme.text, minWidth: 0, shrinks: false))
                 }
             }
-            .frame(maxHeight: Theme.s(150))
+            .padding(Theme.s(14))
+            .background(RoundedRectangle(cornerRadius: Theme.s(10)).fill(Theme.panel))
+            .overlay(RoundedRectangle(cornerRadius: Theme.s(10)).stroke(Theme.dimGreen, lineWidth: Theme.s(1)))
+            .padding(.top, Theme.s(10))
         }
+        .onAppear { codeFocused = true }
+    }
+
+    private func startCodeEntry() {
+        enteringCode = true
+    }
+
+    private func endCodeEntry() {
+        codeFocused = false
+        enteringCode = false
+    }
+
+    /// The open rounds nearby; a tap joins. The list takes the free room of the tile and scrolls when it
+    /// is longer; rounds that can be joined come first.
+    private var openGames: some View {
+        Group {
+            if matchmaker.openGames.isEmpty {
+                Text(L("No open round nearby yet.")).font(Theme.mono(14)).foregroundStyle(.gray)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            } else {
+                ScrollView {
+                    VStack(spacing: Theme.s(6)) {
+                        ForEach(Self.ordered(matchmaker.openGames)) { game in
+                            Button { joinListed(game) } label: { openGameRow(game) }
+                                .buttonStyle(.plain)
+                                .disabled(!game.fits || game.taken >= game.seats)
+                        }
+                    }
+                    .padding(.trailing, Theme.s(8))     // room for the scroll bar
+                }
+                .scrollIndicators(.visible)
+                .scrollIndicatorsFlash(onAppear: true)
+                .scrollIndicatorsFlash(trigger: matchmaker.openGames.count)
+            }
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+    }
+
+    /// Free rounds first, then full ones, then those of another version; each by host name.
+    static func ordered(_ games: [OpenGame]) -> [OpenGame] {
+        func rank(_ game: OpenGame) -> Int { !game.fits ? 2 : (game.taken >= game.seats ? 1 : 0) }
+        return games.sorted { (rank($0), $0.hostName, $0.code) < (rank($1), $1.hostName, $1.code) }
     }
 
     private func openGameRow(_ game: OpenGame) -> some View {
@@ -141,12 +237,12 @@ struct MultiplayerView: View {
 
     private func join() {
         guard code.count == Matchmaker.codeLength else { return }
-        codeFocused = false
+        endCodeEntry()
         matchmaker.join(code: code, name: name)
     }
 
     private func joinListed(_ game: OpenGame) {
-        codeFocused = false
+        endCodeEntry()
         matchmaker.join(code: game.code, name: name)
     }
 

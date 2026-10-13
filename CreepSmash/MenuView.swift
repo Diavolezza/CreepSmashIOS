@@ -176,7 +176,9 @@ struct SetupView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            content(landscape: geometry.size.width > geometry.size.height)
+            content(landscape: geometry.size.width > geometry.size.height,
+                    // iPhone in landscape: smaller map cards, so the header is not pushed out of the window.
+                    cardSize: geometry.size.height < 500 ? Theme.s(130) : Theme.s(170))
                 .frame(width: geometry.size.width, height: geometry.size.height)
         }
         .background(Theme.background.ignoresSafeArea())
@@ -185,7 +187,7 @@ struct SetupView: View {
         }
     }
 
-    private func content(landscape: Bool) -> some View {
+    private func content(landscape: Bool, cardSize: CGFloat) -> some View {
         ZStack {
             Theme.background.ignoresSafeArea()
             VStack(spacing: Theme.s(14)) {
@@ -194,7 +196,7 @@ struct SetupView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: Theme.s(14)) {
                             ForEach(GameMap.all, id: \.id) { map in
-                                MapCard(map: map, selected: map.id == mapID, size: Theme.s(170))
+                                MapCard(map: map, selected: map.id == mapID, size: cardSize)
                                     .id(map.id)
                                     .onTapGesture { mapID = map.id }
                             }
