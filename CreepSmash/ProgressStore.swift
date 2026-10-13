@@ -63,7 +63,7 @@ extension Achievement {
         case "fastWin": return L("Win \(n) games within 8 minutes")
         case "allMaps": return L("Win on every map")
         case "streak": return L("Win \(n) games in a row")
-        case "onlineWins": return L("Win \(n) two-player games")
+        case "onlineWins": return L("Win \(n) multiplayer games")
         case "creepsKilled": return L("Shoot down \(n) creeps")
         case "creepsSent": return L("Send \(n) creeps")
         case "towersBuilt": return L("Build \(n) towers")

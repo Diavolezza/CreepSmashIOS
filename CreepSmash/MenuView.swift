@@ -13,7 +13,7 @@ struct MenuView: View {
     @Binding var level: Bot.Level
     @Binding var mapID: String
     @Binding var playerName: String
-    @Binding var showTwoPlayer: Bool
+    @Binding var showMultiplayer: Bool
     let matchmaker: Matchmaker
     let onStart: () -> Void
     let onResume: () -> Void
@@ -103,9 +103,9 @@ struct MenuView: View {
                 .allowsHitTesting(false)
         }
         .sheet(isPresented: $showOptions) { OptionsView() }
-        .fullScreenCover(isPresented: $showTwoPlayer, onDismiss: { matchmaker.cancel() }) {
-            TwoPlayerView(matchmaker: matchmaker, mapID: $mapID, playerName: $playerName,
-                          onCancel: { withoutSliding { showTwoPlayer = false } })
+        .fullScreenCover(isPresented: $showMultiplayer, onDismiss: { matchmaker.cancel() }) {
+            MultiplayerView(matchmaker: matchmaker, mapID: $mapID, playerName: $playerName,
+                          onCancel: { withoutSliding { showMultiplayer = false } })
         }
         .fullScreenCover(isPresented: $showSetup) {
             SetupView(level: $level, mapID: $mapID, playerName: $playerName,
@@ -135,7 +135,7 @@ extension MenuView {
     @ViewBuilder private var mainButtons: some View {
         Button(L("Vs. computer")) { withoutSliding { showSetup = true } }
             .buttonStyle(MenuButtonStyle(minWidth: 0, fill: true, shrinks: false))
-        Button(L("Two players")) { withoutSliding { showTwoPlayer = true } }
+        Button(L("Multiplayer")) { withoutSliding { showMultiplayer = true } }
             .buttonStyle(MenuButtonStyle(minWidth: 0, fill: true, shrinks: false))
     }
 

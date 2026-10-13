@@ -100,7 +100,7 @@ struct HallOfFameView: View {
             StatCard(symbol: "flame.fill", title: L("Winning streak"),
                      line: L("best \(r.bestStreak) · now \(r.currentStreak)")),
         ] + levelCards + [
-            StatCard(symbol: "person.2.fill", title: L("Two players"), line: won(r.onlineWins, r.onlineGames),
+            StatCard(symbol: "person.2.fill", title: L("Multiplayer"), line: won(r.onlineWins, r.onlineGames),
                      share: rate(r.onlineWins, r.onlineGames)),
             StatCard(symbol: "arrow.up.right", title: L("Creeps sent"), line: Format.credits(r.creepsSent)),
             StatCard(symbol: "scope", title: L("Shot down"), line: Format.credits(r.creepsKilled)),

@@ -33,6 +33,7 @@ struct GameScreen: View {
         .overlay { if controller.isPaused, !isFinished, controller.connectionProblem == nil { pauseOverlay } }
         .overlay { if case let .finished(rank) = controller.hud.phase { finishedOverlay(rank: rank) } }
         .overlay { if let problem = controller.connectionProblem { problemOverlay(problem) } }
+        .overlay { if let note = controller.handoverNote, controller.connectionProblem == nil { handoverOverlay(note) } }
         .sheet(isPresented: $showOptions) { OptionsView() }
         // Records and evaluation fill the screen: over the game behind them they were hard to read.
         .fullScreenCover(isPresented: $showRecords) { HallOfFameView(tab: .statistics) }
@@ -341,7 +342,7 @@ struct GameScreen: View {
             }
             if controller.isWaitingForOpponent, controller.connectionProblem == nil {
                 VStack {
-                    Text(L("Waiting for \(controller.hud.opponentName) …"))
+                    Text(L("Waiting for \(controller.waitingNames) …"))
                         .font(Theme.mono(13, .semibold))
                         .foregroundStyle(Theme.warning)
                         .padding(.horizontal, Theme.s(12)).padding(.vertical, Theme.s(6))
@@ -390,9 +391,7 @@ struct GameScreen: View {
                 Text(L("Pause")).font(Theme.pixel(28)).foregroundStyle(Theme.green)
                 if let pause = controller.netPause {
                     let time = String(format: "%d:%02d", pause.secondsLeft / 60, pause.secondsLeft % 60)
-                    Text(pause.byMe
-                         ? L("Your opponent is waiting. If you do not go on within \(time), the game counts as given up.")
-                         : L("\(controller.hud.opponentName) has paused the game. If the game does not go on within \(time), you win."))
+                    Text(pauseText(pause, time: time))
                         .font(Theme.mono(14)).foregroundStyle(Theme.text)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: Theme.s(440))
@@ -415,6 +414,15 @@ struct GameScreen: View {
                         .buttonStyle(MenuButtonStyle(color: Theme.warning, fill: true))
                 }
                 .fixedSize(horizontal: true, vertical: false)
+        }
+    }
+
+    private func pauseText(_ pause: GameController.NetPause, time: String) -> String {
+        switch (pause.byMe, controller.isGroup) {
+        case (true, false): L("Your opponent is waiting. If you do not go on within \(time), the game counts as given up.")
+        case (true, true): L("The others are waiting. If you do not go on within \(time), you are out.")
+        case (false, false): L("\(pause.name) has paused the game. If the game does not go on within \(time), you win.")
+        case (false, true): L("\(pause.name) has paused the game. If the game does not go on within \(time), \(pause.name) is out.")
         }
     }
 
@@ -484,7 +492,7 @@ struct GameScreen: View {
                     // The overall statistics as a sheet over the result; closing it returns here.
                     Button(L("Records")) { withoutSliding { showRecords = true } }
                         .buttonStyle(MenuButtonStyle(color: Theme.gold, fill: true))
-                    Button(L("Back to menu")) { leave() }.buttonStyle(MenuButtonStyle(color: Theme.text, fill: true))
+                    Button(L("Back to menu")) { exit() }.buttonStyle(MenuButtonStyle(color: Theme.text, fill: true))
                 }
                 .fixedSize(horizontal: true, vertical: false)
             }
@@ -524,9 +532,29 @@ struct GameScreen: View {
         }
     }
 
+    /// Give up (pause menu).
     private func leave() {
         controller.quit()
         onExit()
+    }
+
+    /// Back to the menu after the end, or when the round cannot go on.
+    private func exit() {
+        controller.leave()
+        onExit()
+    }
+
+    /// The host is gone; the devices connect to the new host (a few seconds).
+    private func handoverOverlay(_ text: String) -> some View {
+        ZStack {
+            Color.black.opacity(0.7).ignoresSafeArea()
+            VStack(spacing: Theme.s(14)) {
+                ProgressView().tint(Theme.green)
+                Text(text).font(Theme.mono(15)).foregroundStyle(Theme.text)
+                    .multilineTextAlignment(.center).frame(maxWidth: Theme.s(460))
+                Button(L("Back to menu")) { exit() }.buttonStyle(MenuButtonStyle(color: Theme.text))
+            }
+        }
     }
 
     private func problemOverlay(_ text: String) -> some View {
@@ -536,7 +564,7 @@ struct GameScreen: View {
                 Text(L("Connection problem")).font(Theme.pixel(20)).foregroundStyle(Theme.warning)
                 Text(text).font(Theme.mono(14)).foregroundStyle(Theme.text)
                     .multilineTextAlignment(.center).frame(maxWidth: Theme.s(460))
-                Button(L("Back to menu")) { leave() }.buttonStyle(MenuButtonStyle(color: Theme.text))
+                Button(L("Back to menu")) { exit() }.buttonStyle(MenuButtonStyle(color: Theme.text))
             }
         }
     }

@@ -133,12 +133,14 @@ extension RejectReason {
     }
 }
 
-extension Handshake.Failure {
+extension LobbyFailure {
     var message: String {
         switch self {
         case .connectionLost: L("Connection lost")
-        case .otherVersion: L("Your opponent has a different app version")
+        case .otherVersion: L("The other device has a different app version")
         case .unknownMap: L("Unknown map – please update the app")
+        case .full: L("This round is already full")
+        case .closed: L("The round has been closed")
         }
     }
 }

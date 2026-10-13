@@ -68,6 +68,8 @@ final class GameController {
     /// Pause of an online game as shown: who paused, seconds left until the limit, countdown before going on.
     struct NetPause: Equatable {
         var byMe: Bool
+        /// Name of the player who paused.
+        var name: String
         var secondsLeft: Int
         var countdown: Int?
     }
@@ -78,7 +80,12 @@ final class GameController {
     var pausedByOpponent: Bool { netPause.map { !$0.byMe } ?? false }
     /// Online game has been waiting for the opponent for more than half a second.
     private(set) var isWaitingForOpponent = false
-    /// Online game is broken (the devices compute different results).
+    /// Names of the players the online game is waiting for.
+    private(set) var waitingNames = ""
+    /// The host is gone and another device takes over (online game with more than two).
+    private(set) var handoverNote: String?
+    @ObservationIgnored private var handoverFinder: NearbyFinder?
+    /// Online game cannot go on (the devices compute different results, or the host is gone).
     private(set) var connectionProblem: String?
     private(set) var toast: Toast? = nil
     @ObservationIgnored private var waitingSince: CFTimeInterval?
@@ -130,6 +137,12 @@ final class GameController {
         network?.onStatusChange = { [weak self] status in
             MainActor.assumeIsolated { self?.networkStatusChanged(status) }
         }
+        network?.onEvent = { [weak self] event in
+            MainActor.assumeIsolated { self?.networkEvent(event) }
+        }
+        network?.onHandover = { [weak self] role in
+            MainActor.assumeIsolated { self?.handoverChanged(role) }
+        }
     }
 
     /// Out of a game against the computer: the remaining computers are not played on in the background
@@ -158,7 +171,7 @@ final class GameController {
         network.updatePause()
         let now = Date()
         let value = network.pause.map { pause in
-            NetPause(byMe: pause.player == me,
+            NetPause(byMe: pause.player == me, name: displayName(pause.player),
                      secondsLeft: max(0, Int((NetworkMatch.pauseLimit - now.timeIntervalSince(pause.since)).rounded(.up))),
                      countdown: pause.resumesAt.map { max(1, Int($0.timeIntervalSince(now).rounded(.up))) })
         }
@@ -202,37 +215,98 @@ final class GameController {
         outcome = ProgressStore.shared.add(summary, playerName: playerName)
     }
 
-    /// Leave the game. Online this means giving up; the opponent wins.
+    /// Leave the game. Online this means giving up; the others go on (if the host leaves, another
+    /// device takes over).
     func quit() {
         // Giving up a running game counts as a loss.
         if game.isStarted { record(won: false) }
         if match is LocalMatch, autopilot == nil { SavedGameStore.clear() }
+        leave()
+    }
+
+    /// Leave the game screen (also after the end, or when the round could not go on).
+    func leave() {
         stop()
+        handoverFinder?.stop()
+        handoverFinder = nil
         network?.leave()
     }
 
     private func networkStatusChanged(_ status: NetworkMatch.Status) {
         switch status {
-        case .running:
+        case .running, .left:
             break
-        case .opponentGone:
+        case .pauseExpired:
             isPaused = false
             netPause = nil
             isWaitingForOpponent = false
-            if !game.isFinished || game.winner == me {
-                endNote = L("Your opponent has left the game")
-                show(L("Your opponent has left the game"))
-            }
-        case let .pauseExpired(loser):
-            isPaused = false
-            netPause = nil
-            isWaitingForOpponent = false
-            endNote = loser == me ? L("Your pause lasted longer than 2 minutes – the game counts as given up.")
-                                  : L("\(hud.opponentName) did not continue within 2 minutes – you win.")
+            endNote = isGroup ? L("Your pause lasted longer than 2 minutes – you are out.")
+                              : L("Your pause lasted longer than 2 minutes – the game counts as given up.")
             show(endNote ?? "")
+            updateHUD()
+            recordIfFinished()
+        case .hostGone:
+            isPaused = false
+            netPause = nil
+            isWaitingForOpponent = false
+            handoverNote = nil
+            connectionProblem = L("The connection to the other players is lost. The round is over.")
         case let .desynced(tick):
-            connectionProblem = L("The two devices compute differently (tick \(tick)). The game cannot continue.")
+            connectionProblem = L("The devices compute differently (tick \(tick)). The game cannot continue.")
         }
+    }
+
+    private func networkEvent(_ event: NetworkMatch.Event) {
+        switch event {
+        case let .playerLeft(player):
+            let text = isGroup ? L("\(displayName(player)) has left the game") : L("Your opponent has left the game")
+            show(text)
+            if !isGroup || alivePeople(besides: player) == 0 { endNote = text }
+        case let .newHost(player):
+            show(player == me ? L("Your device now connects the players") : L("\(displayName(player)) now connects the players"))
+        case let .pauseExpired(player):
+            if player == me {
+                endNote = isGroup ? L("Your pause lasted longer than 2 minutes – you are out.")
+                                  : L("Your pause lasted longer than 2 minutes – the game counts as given up.")
+                show(endNote ?? "")
+            } else if isGroup {
+                show(L("\(displayName(player)) did not continue within 2 minutes and is out."))
+            } else {
+                endNote = L("\(displayName(player)) did not continue within 2 minutes – you win.")
+                show(endNote ?? "")
+            }
+        }
+    }
+
+    /// Handover: the app makes the device reachable (new host) or connects it to the new host.
+    private func handoverChanged(_ role: NetworkMatch.Handover?) {
+        handoverFinder?.stop()
+        handoverFinder = nil
+        guard let role, let network else { handoverNote = nil; return }
+        handoverNote = L("\(displayName(network.hostPlayer)) is gone – the connection is being rebuilt …")
+        let finder = NearbyFinder()
+        let code = network.setup.code
+        switch role {
+        case .host:
+            finder.onConnected = { [weak network] transport, _ in
+                MainActor.assumeIsolated { network?.handoverGuest(transport) }
+            }
+            finder.serve(name: NearbyFinder.handoverName(code: code, player: me))
+        case let .guest(host):
+            finder.onConnected = { [weak network] transport, _ in
+                MainActor.assumeIsolated { network?.handoverConnected(transport) }
+            }
+            finder.connect(to: NearbyFinder.handoverName(code: code, player: host))
+        }
+        // The time limits of the handover decide when to give up.
+        finder.onError = { _ in }
+        handoverFinder = finder
+    }
+
+    /// Other people still playing in an online game.
+    private func alivePeople(besides player: Int) -> Int {
+        guard let network else { return 0 }
+        return network.setup.humans.filter { $0 != me && $0 != player && !game.players[$0].isDead }.count
     }
 
     // MARK: - Runtime
@@ -261,10 +335,10 @@ final class GameController {
             runAutopilot()
             guard match.advance() else {
                 accumulator = 0
-                noteWaiting(network?.isWaitingForOpponent == true, now: timestamp)
+                noteWaiting(network?.waitingFor ?? [], now: timestamp)
                 break
             }
-            noteWaiting(false, now: timestamp)
+            noteWaiting([], now: timestamp)
             handleEvents(game.events, now: timestamp)
             stats?.observe(game)
             accumulator -= tickDuration
@@ -280,8 +354,8 @@ final class GameController {
         effects.prune(now: timestamp)
     }
 
-    private func noteWaiting(_ waiting: Bool, now: CFTimeInterval) {
-        if !waiting {
+    private func noteWaiting(_ players: [Int], now: CFTimeInterval) {
+        if players.isEmpty {
             waitingSince = nil
             if isWaitingForOpponent { isWaitingForOpponent = false }
             return
@@ -289,6 +363,8 @@ final class GameController {
         if waitingSince == nil { waitingSince = now }
         let long = now - (waitingSince ?? now) > 0.5
         if long != isWaitingForOpponent { isWaitingForOpponent = long }
+        let names = players.map(displayName).joined(separator: ", ")
+        if names != waitingNames { waitingNames = names }
     }
 
     private func runAutopilot() {
@@ -342,7 +418,7 @@ final class GameController {
         } else {
             h.phase = .running
         }
-        // A player without a name (two-player game) is shown as "You" or "Opponent".
+        // A player without a name (network game) is shown as "You", "Opponent" or "Player n".
         h.myName = board.name.isEmpty ? L("You") : board.name
         h.credits = board.credits
         h.available = board.credits - game.reservedCredits(player: me)
@@ -375,7 +451,8 @@ final class GameController {
     /// Name as shown: players without a name are "Opponent".
     func displayName(_ player: Int) -> String {
         let name = game.players[player].name
-        return name.isEmpty ? (player == me ? L("You") : L("Opponent")) : name
+        guard name.isEmpty else { return name }
+        return player == me ? L("You") : (isGroup ? L("Player \(player + 1)") : L("Opponent"))
     }
 
     // MARK: - Controls

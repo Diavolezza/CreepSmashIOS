@@ -6,6 +6,7 @@
 #          ./build.sh play    two visible simulators: you vs. autopilot over the network ("play manual": you operate both)
 #          ./build.sh shot    start the app invisibly (with launch arguments), screenshot, quit
 #          ./build.sh duo     two simulators play each other (autopilot), screenshots
+#          ./build.sh quad    three or four simulators play one round (autopilot), screenshots
 #          ./build.sh mac     let Xcode build and start the iPad app on this Mac ("Designed for iPad", Apple silicon)
 #          ./build.sh commit  commit everything with the message in build/commit-msg.txt and push
 #          ./build.sh push    push again after a failed push
@@ -184,7 +185,7 @@ OSA
       if [[ "$extra" == *manual* ]]; then
         xcrun simctl launch "$a" de.wanner-it.creepsmash
         xcrun simctl launch "$b" de.wanner-it.creepsmash
-        echo "✓ Both simulators show the menu – use \"Zu zweit\" on both"
+        echo "✓ Both simulators show the menu – use \"Mehrspieler\" on both"
       else
         code=$(LC_ALL=C tr -dc 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' </dev/urandom | head -c5)
         xcrun simctl launch "$a" de.wanner-it.creepsmash -host "$code"
@@ -219,6 +220,66 @@ OSA
     xcrun simctl shutdown "$a" >/dev/null 2>&1 || true
     xcrun simctl shutdown "$b" >/dev/null 2>&1 || true
     echo "✓ duo finished, simulators shut down"
+    return 0
+  fi
+  if [ "$mode" = "quad" ]; then
+    # Several simulators play one round over the local network (all with autopilot), then screenshots
+    # build/quad-<n>.png. "quad 3": three people (default four); "quad 3 cpu": the free seat gets a
+    # computer; "quad lobby": screenshots of the lobby before the start instead (host and first guest);
+    # "quad hostquit": the host leaves after 25 s, another device takes over.
+    # QUAD_SECONDS = game duration (default 45).
+    local people=4 cpu="" lobby="" quit="" code i
+    if [[ "$extra" =~ ([234]) ]]; then people="${BASH_REMATCH[1]}"; fi
+    if [[ "$extra" == *cpu* ]]; then cpu="-cpu normal"; fi
+    if [[ "$extra" == *lobby* ]]; then lobby=1; fi
+    if [[ "$extra" == *hostquit* ]]; then quit="-quitAfter 25"; fi
+    # iPhones first, then iPads (newest iOS with major number $SIM_IOS, default 26).
+    local sims=()
+    while read -r id; do [ -n "$id" ] && sims+=("$id"); done < <(xcrun simctl list devices available | awk -v want="${SIM_IOS:-26}" '
+      /^-- iOS/ { split($3, v, "."); ios = (v[1] == want); next }
+      /^--/     { ios = 0; next }
+      ios && /iPhone/ { match($0, /[0-9A-F-]{36}/); phones = phones substr($0, RSTART, RLENGTH) "\n" }
+      ios && /iPad/   { match($0, /[0-9A-F-]{36}/); pads = pads substr($0, RSTART, RLENGTH) "\n" }
+      END { printf "%s%s", phones, pads }' | head -n "$people")
+    if [ "${#sims[@]}" -lt "$people" ]; then echo "** only ${#sims[@]} simulators with iOS ${SIM_IOS:-26} **"; return 1; fi
+    xcrun simctl shutdown all >/dev/null 2>&1 || true
+    for id in "${sims[@]}"; do
+      echo "▸ simulator $(xcrun simctl list devices | grep "$id" | sed -E 's/ *\(.*//; s/^ *//')"
+      xcrun simctl boot "$id"; xcrun simctl install "$id" "$APP"
+    done
+    local names=(Anna Bert Cleo Dora)
+    code=$(LC_ALL=C tr -dc 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' </dev/urandom | head -c5)
+    echo "▸ Code $code, $people people${cpu:+ and a computer}"
+    if [ -n "$lobby" ]; then
+      xcrun simctl launch "${sims[0]}" de.wanner-it.creepsmash -host "$code" -multiplayer -playerName Anna -musicEnabled NO
+      sleep 4
+      for ((i = 1; i < people; i++)); do
+        xcrun simctl launch "${sims[$i]}" de.wanner-it.creepsmash -join "$code" -multiplayer -playerName "${names[$i]}" -musicEnabled NO
+        sleep 2
+      done
+      sleep "${QUAD_SECONDS:-12}"
+      xcrun simctl io "${sims[0]}" screenshot build/quad-lobby-host.png >/dev/null 2>&1 && echo "✓ screenshot: build/quad-lobby-host.png"
+      xcrun simctl io "${sims[1]}" screenshot build/quad-lobby-guest.png >/dev/null 2>&1 && echo "✓ screenshot: build/quad-lobby-guest.png"
+    else
+      # shellcheck disable=SC2086
+      xcrun simctl launch "${sims[0]}" de.wanner-it.creepsmash -host "$code" -startWhen "$people" $cpu $quit -autopilot -playerName Anna -musicEnabled NO
+      sleep 4
+      for ((i = 1; i < people; i++)); do
+        xcrun simctl launch "${sims[$i]}" de.wanner-it.creepsmash -join "$code" -autopilot -playerName "${names[$i]}" -musicEnabled NO
+        sleep 2
+      done
+      sleep "${QUAD_SECONDS:-45}"
+      for ((i = 0; i < people; i++)); do
+        xcrun simctl io "${sims[$i]}" screenshot "build/quad-$((i + 1)).png" >/dev/null 2>&1 && echo "✓ screenshot: build/quad-$((i + 1)).png"
+      done
+    fi
+    echo "▸ crash reports of the last 2 minutes:"
+    find ~/Library/Logs/DiagnosticReports -mmin -2 -type f 2>/dev/null | sed 's|.*/||' | head
+    for id in "${sims[@]}"; do
+      xcrun simctl terminate "$id" de.wanner-it.creepsmash >/dev/null 2>&1 || true
+      xcrun simctl shutdown "$id" >/dev/null 2>&1 || true
+    done
+    echo "✓ quad finished, simulators shut down"
     return 0
   fi
   if [ "$mode" = "run" ] || [ "$mode" = "demo" ] || [ "$mode" = "shot" ]; then

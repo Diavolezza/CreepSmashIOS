@@ -40,7 +40,7 @@ struct CreepSmashApp: App {
 struct RootView: View {
     @State private var controller: GameController?
     @State private var matchmaker = Matchmaker()
-    @State private var showTwoPlayer = false
+    @State private var showMultiplayer = false
     @State private var showRecords = false
     @State private var showReport = false
     @State private var handledLaunchArguments = false
@@ -78,7 +78,7 @@ struct RootView: View {
                            onExit: { self.controller = nil })
                     .id(ObjectIdentifier(controller))
             } else {
-                MenuView(level: $level, mapID: $mapID, playerName: $playerName, showTwoPlayer: $showTwoPlayer,
+                MenuView(level: $level, mapID: $mapID, playerName: $playerName, showMultiplayer: $showMultiplayer,
                          matchmaker: matchmaker, onStart: { startGame() }, onResume: { resumeGame() })
                     .overlay { if let resumeProgress { loadingOverlay(resumeProgress) } }
             }
@@ -175,7 +175,7 @@ struct RootView: View {
     }
 
     private func startOnline(_ match: NetworkMatch) {
-        withoutSliding { showTwoPlayer = false }
+        withoutSliding { showMultiplayer = false }
         controller?.stop()
         let autopilot = ProcessInfo.processInfo.arguments.contains("-autopilot")
         let controller = GameController(match: match, mode: autopilot ? nil : .online)
@@ -189,6 +189,14 @@ struct RootView: View {
             guard let i = args.firstIndex(of: flag), i + 1 < args.count else { return nil }
             return Double(args[i + 1])
         }
+        // Handover tests: "-quitAfter 30" leaves the game after 30 s, as with "Give up".
+        if let quitAfter = seconds("-quitAfter") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + quitAfter) { [weak controller] in
+                guard let controller, self.controller === controller else { return }
+                controller.quit()
+                self.controller = nil
+            }
+        }
         if let pauseAfter = seconds("-pauseAfter") {
             let resumeAfter = seconds("-resumeAfter")
             DispatchQueue.main.asyncAfter(deadline: .now() + pauseAfter) { [weak controller] in
@@ -201,7 +209,8 @@ struct RootView: View {
     }
 
     /// Launch arguments for screenshots and tests in the Simulator:
-    /// -demo (game against the computer, fast-forwarded), -host CODE / -join CODE / -quick (two players), -twoplayer („Zu zweit“ page), -autopilot,
+    /// -demo (game against the computer, fast-forwarded), -host CODE / -join CODE / -quick (network game), -multiplayer (multiplayer page), -autopilot,
+    /// -startWhen N (the host starts its round as soon as N people are in it), -cpu LEVEL (the host's free seats get computers),
     /// -records (records page), -sampleProgress (adds made-up games to the records),
     /// -landscape (turns an iPad simulator to landscape), -report (evaluation of the last game), -map ID (map of the game),
     /// -play (normal game against the computer), -resume (continue the saved game).
@@ -250,17 +259,19 @@ struct RootView: View {
         } else if args.contains("-resume") {
             resumeGame()
         } else if let code = value(after: "-host") {
+            matchmaker.autoStartPeople = value(after: "-startWhen").flatMap(Int.init)
+            matchmaker.autoStartComputers = value(after: "-cpu").flatMap(Bot.Level.init(rawValue:))
             matchmaker.host(mapID: mapID, name: networkName, code: Matchmaker.normalize(code))
         } else if let code = value(after: "-join") {
             matchmaker.join(code: code, name: networkName)
         } else if args.contains("-quick") {
             matchmaker.quick(name: networkName)
         }
-        // Also together with -quick / -join, to see the search (screenshots).
-        if args.contains("-twoplayer") { showTwoPlayer = true }
+        // Also together with -quick / -join / -host, to see the search or the lobby (screenshots).
+        if args.contains("-multiplayer") { showMultiplayer = true }
         // Opens the page a few seconds after the start, like a tap on the button (animation tests).
-        if let delay = value(after: "-twoplayerAfter").flatMap(Double.init) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { withoutSliding { showTwoPlayer = true } }
+        if let delay = value(after: "-multiplayerAfter").flatMap(Double.init) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { withoutSliding { showMultiplayer = true } }
         }
     }
 }

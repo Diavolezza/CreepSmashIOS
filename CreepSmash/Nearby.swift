@@ -94,11 +94,27 @@ final class StreamTransport: Transport {
     }
 }
 
-/// Finds a nearby opponent (same network, or directly via Wi-Fi/Bluetooth peer-to-peer) using Bonjour.
+/// A round opened nearby, as shown in the list on the multiplayer page.
+struct OpenGame: Identifiable, Equatable {
+    var code: String
+    var hostName: String
+    var mapID: String
+    var taken: Int
+    var seats: Int
+    /// Protocol version of the host; another one cannot be joined.
+    var version: Int
+    var id: String { code }
+    var fits: Bool { version == NetMessage.protocolVersion }
+}
+
+/// Finds nearby players (same network, or directly via Wi-Fi/Bluetooth peer-to-peer) using Bonjour.
 ///
-/// - Code game: the host advertises a service with the code in its name; the guest looks for exactly that one.
+/// - Round with a code: the host advertises a service with the code in its name and accepts several
+///   guests; host name, map and seats are in the TXT record (for the list of open rounds). The guest
+///   looks for exactly that code.
 /// - Quick game: every device advertises and browses at the same time. Of two devices, the one with the
 ///   smaller ID connects to the other; the other one becomes the host.
+/// - List: only browses and reports the open rounds nearby.
 final class NearbyFinder {
     enum Role { case host, guest }
 
@@ -106,6 +122,8 @@ final class NearbyFinder {
     private static var prefix: String { "CS\(NetMessage.protocolVersion)" }
 
     var onConnected: ((Transport, Role) -> Void)?
+    /// List mode: the open rounds nearby, whenever they change.
+    var onGames: (([OpenGame]) -> Void)?
     var onError: ((String) -> Void)?
     /// Devices that would match but run another protocol version (they cannot play together):
     /// their versions, reported whenever the set changes. They are never connected to.
@@ -126,6 +144,9 @@ final class NearbyFinder {
     /// recognized by this, so the player learns why nobody is found.
     private var wanted: (kind: String, code: String?) = ("Q", nil)
     private var otherVersions: Set<Int> = []
+    /// Host of a round: keeps accepting guests after the first one.
+    private var keepsListening = false
+    private var serviceName = ""
 
     /// Parts of a service name "CS<version>-<kind>-<id or code>" – the scheme of all versions so far.
     static func parse(_ name: String) -> (version: Int, kind: String, rest: String)? {
@@ -134,8 +155,64 @@ final class NearbyFinder {
         return (version, parts[1], parts[2])
     }
 
-    func host(code: String) {
-        advertise(name: "\(Self.prefix)-C-\(code)")
+    /// Opens a round: guests can connect until `stop()`; each one is reported by `onConnected`.
+    func host(code: String, info: [String: String]) {
+        keepsListening = true
+        advertise(name: "\(Self.prefix)-C-\(code)", txt: info)
+    }
+
+    /// Service name under which the device of `player` takes over the round with `code` (handover).
+    static func handoverName(code: String, player: Int) -> String {
+        "\(prefix)-M-\(code)-\(player)"
+    }
+
+    /// Handover: be reachable under this name; every device that connects is reported by `onConnected`.
+    func serve(name: String) {
+        keepsListening = true
+        advertise(name: name)
+    }
+
+    /// Handover: connect to the service with exactly this name.
+    func connect(to name: String) {
+        wanted = ("M", nil)
+        browse { $0 == name }
+    }
+
+    /// New details of the open round for the list (name, map, seats).
+    func update(info: [String: String]) {
+        guard let listener, !finished else { return }
+        listener.service = NWListener.Service(name: serviceName, type: Self.serviceType, txtRecord: Self.txt(info))
+    }
+
+    /// Lists the open rounds nearby (`onGames`); never connects.
+    func listGames() {
+        let browser = NWBrowser(for: .bonjourWithTXTRecord(type: Self.serviceType, domain: nil), using: StreamTransport.parameters)
+        browser.browseResultsChangedHandler = { [weak self] results, _ in self?.report(results) }
+        browser.stateUpdateHandler = { [weak self] state in
+            if case let .waiting(error) = state { self?.checkPermission(error) }
+        }
+        browser.start(queue: .main)
+        self.browser = browser
+    }
+
+    private func report(_ results: Set<NWBrowser.Result>) {
+        guard !finished else { return }
+        var games: [OpenGame] = []
+        for result in results {
+            guard case let .service(name, _, _, _) = result.endpoint, let parts = Self.parse(name), parts.kind == "C" else { continue }
+            var info: [String: String] = [:]
+            if case let .bonjour(record) = result.metadata { info = record.dictionary }
+            let seats = info["s"]?.split(separator: "/").compactMap { Int($0) } ?? []
+            games.append(OpenGame(code: parts.rest, hostName: info["n"] ?? "", mapID: info["m"] ?? "",
+                                  taken: seats.first ?? 1, seats: seats.count == 2 ? seats[1] : 4, version: parts.version))
+        }
+        onGames?(games.sorted { ($0.hostName, $0.code) < ($1.hostName, $1.code) })
+    }
+
+    private static func txt(_ info: [String: String]) -> NWTXTRecord {
+        var record = NWTXTRecord()
+        for (key, value) in info { record[key] = value }
+        return record
     }
 
     func join(code: String) {
@@ -168,10 +245,11 @@ final class NearbyFinder {
         attempts.removeAll()
     }
 
-    private func advertise(name: String) {
+    private func advertise(name: String, txt: [String: String] = [:]) {
+        serviceName = name
         do {
             let listener = try NWListener(using: StreamTransport.parameters)
-            listener.service = NWListener.Service(name: name, type: Self.serviceType)
+            listener.service = NWListener.Service(name: name, type: Self.serviceType, txtRecord: Self.txt(txt))
             listener.newConnectionHandler = { [weak self] connection in
                 guard let self, !self.finished else { return connection.cancel() }
                 self.attempt(connection, name: "in:\(connection.endpoint)", role: .host)
@@ -258,8 +336,10 @@ final class NearbyFinder {
             guard let self, let transport, !self.finished else { return }
             self.attempts[name] = nil
             transport.onClose = nil
-            self.stop()
+            // The host of a round goes on listening for more guests.
+            if !(self.keepsListening && role == .host) { self.stop() }
             self.onConnected?(transport, role)
+            self.reportStatus()
         }
         // An attempt that does not get through within a few seconds is given up and repeated.
         DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak self, weak transport] in

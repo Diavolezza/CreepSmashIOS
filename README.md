@@ -2,7 +2,7 @@
 
 A remake of the multiplayer tower defense game **CreepSmash** as an iPhone/iPad/Mac app in Swift. The original Java version was written in the summer semester of 2008 by ten computer science students in the course *Informatikprojekt 2* at HFT Stuttgart (University of Applied Sciences), supervised by Prof. Dr.-Ing. Gerhard Wanner.
 
-Two players, landscape: your own board and your opponent's board side by side. Spend your credits on towers to defend, or send creeps to your opponent – every creep you send raises your income for good.
+Two to four players, landscape: your own board and your opponent's board side by side. Spend your credits on towers to defend, or send creeps to your opponent – every creep you send raises your income for good.
 
 ## Project layout
 
@@ -30,6 +30,7 @@ From the command line:
 ./build.sh duo        # two simulators play each other over the local network
 ./build.sh duo quick  # same, using "quick game" instead of a code
 ./build.sh play       # two visible simulators: you vs. the autopilot over the network
+./build.sh quad       # four simulators play one round (quad 3: three; quad 3 cpu: plus a computer; quad lobby: lobby screenshots; quad hostquit: the host leaves, another device takes over)
 ./build.sh shot …     # start the app invisibly with launch arguments, take a screenshot
 ./build.sh commit     # commit everything with the message in build/commit-msg.txt and push
 ./build.sh stop       # shut down all simulators
@@ -52,9 +53,9 @@ against known values.
 
 ## Technical notes
 
-- **Lockstep:** every device runs the full simulation; only commands with their execution tick are exchanged. The `Match` protocol hides where commands come from: `LocalMatch` plays against the computer, `NetworkMatch` against another device over any `Transport`.
-- **Determinism:** the core only uses integers (positions in milli-pixels), so all devices stay bit-identical. Both devices exchange `Game.checksum()` every 20 ticks to detect divergence.
-- **Matchmaking:** the player sees the same three options regardless of the network – *quick game*, *host a game* (shows a code) and *join with code*. Behind the scenes the app looks for the other player nearby via Bonjour (same Wi-Fi or peer-to-peer) and, later, via Game Center.
+- **Lockstep:** every device runs the full simulation; only commands with their execution tick are exchanged. The `Match` protocol hides where commands come from: `LocalMatch` plays against the computer, `NetworkMatch` against people on other devices (and computers computed on every device) over any `Transport`. The devices form a star around the host, who forwards the guests' packets; if the host is gone, the next player takes over (handover).
+- **Determinism:** the core only uses integers (positions in milli-pixels), so all devices stay bit-identical. The devices exchange `Game.checksum()` every 20 ticks to detect divergence.
+- **Matchmaking:** the player sees the same three options regardless of the network – *quick game for two*, *open a round* for two to four (shows a code; free seats can be given to computers) and *join* (from the list of open rounds nearby or with the code). Behind the scenes the app looks for the other player nearby via Bonjour (same Wi-Fi or peer-to-peer) and, later, via Game Center.
 - **Languages:** English is the source language, German the translation (String Catalog). The flag on the start screen switches the language inside the app; without a choice the device language decides. `L("…")` in `AppLanguage.swift` looks up a text in the chosen language.
 - **Records:** statistics, a leaderboard of the fastest wins per difficulty and tiered achievements are kept on the device (`Progress.swift` in the core, `ProgressStore.swift` in the app); Game Center can mirror them later.
 - **Timing:** 20 ticks per second as in the original; rendering interpolates creep movement to the display refresh rate.
