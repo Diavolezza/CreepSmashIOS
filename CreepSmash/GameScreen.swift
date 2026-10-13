@@ -473,6 +473,10 @@ struct GameScreen: View {
                             Text(L("Towers"))
                             ForEach(boards, id: \.index) { Text("\($0.towers.count)") }
                         }
+                        GridRow {
+                            Text(L("Tower value"))
+                            ForEach(boards, id: \.index) { Text(Format.table($0.towerValue)) }
+                        }
                     }
                     .font(Theme.mono(13))
                     .foregroundStyle(Theme.text)

@@ -85,13 +85,16 @@ public struct GameSummary: Codable, Equatable, Sendable {
     /// Damage done by the own towers and health of all creeps sent (older records: nil).
     public var damageDealt: Int?
     public var healthSent: Int?
+    /// What the own towers standing at the end cost, upgrades included (older records: nil).
+    public var towerValue: Int?
 
     public var seconds: Int { durationTicks * Rules.standard.tickMilliseconds / 1000 }
 
     public init(mode: GameMode, mapID: String, won: Bool, durationTicks: Int, livesLeft: Int, livesLost: Int,
                 maxIncome: Int, creepsSent: Int, creepsKilled: Int, towersBuilt: Int, builtUltimate: Bool,
                 sentColossus: Bool, samples: [GameSample], date: Date, opponentName: String? = nil,
-                damageDealt: Int? = nil, healthSent: Int? = nil, playerNames: [String]? = nil, me: Int? = nil) {
+                damageDealt: Int? = nil, healthSent: Int? = nil, playerNames: [String]? = nil, me: Int? = nil,
+                towerValue: Int? = nil) {
         self.mode = mode
         self.mapID = mapID
         self.won = won
@@ -111,6 +114,7 @@ public struct GameSummary: Codable, Equatable, Sendable {
         self.healthSent = healthSent
         self.playerNames = playerNames
         self.me = me
+        self.towerValue = towerValue
     }
 }
 
@@ -171,7 +175,8 @@ public struct GameStats: Sendable {
                            builtUltimate: builtUltimate, sentColossus: sentColossus, samples: course, date: date,
                            opponentName: opponentName, damageDealt: game.players[me].damageDealt,
                            healthSent: game.players[me].healthSent,
-                           playerNames: playerNames ?? game.players.map(\.name), me: me)
+                           playerNames: playerNames ?? game.players.map(\.name), me: me,
+                           towerValue: game.players[me].towerValue)
     }
 
     private func sample(_ game: Game) -> GameSample? {

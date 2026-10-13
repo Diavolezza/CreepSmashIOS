@@ -83,8 +83,8 @@ public struct Bot: Sendable {
         public var cellChoice: Int
         /// Shift of the share of money that goes into attacks, in percentage points.
         public var economyShift: Int
-        /// When two waves get equally many creeps through: the swarm of cheaper creeps (true) or the
-        /// stronger, more expensive one (false).
+        /// When two waves get equally many creeps through and carry about the same health: a few medium
+        /// creeps (true, at most six) instead of the single strongest one (false). Never masses of weak ones.
         public var likesSwarms: Bool
         /// Seed of the bot's own random numbers (cell choice, timing).
         public var seed: UInt64
@@ -293,19 +293,34 @@ public struct Bot: Sendable {
                 .prefix(5))
         }
         func bestPlan(_ fund: Int) -> (type: CreepType, count: Int, leaks: Int)? {
-            var best: (type: CreepType, count: Int, leaks: Int)?
+            var best: (type: CreepType, count: Int, leaks: Int, health: Int)?
             for c in candidates(fund) {
                 // Not everything evaluated yet: decide at the next opportunity (results are cached).
                 guard let l = simulatedLeaks(game: game, opponent: opponent, type: c.type, count: c.count) else { return nil }
-                // More creeps through is better; on a tie the more expensive wave (more health per credit),
-                // unless the style likes swarms of cheaper creeps.
-                let tieWins = style.likesSwarms ? c.type.stats.price < (best?.type.stats.price ?? 0)
-                                                : c.type.stats.price > (best?.type.stats.price ?? 0)
-                if best == nil || l > best!.leaks || (l == best!.leaks && tieWins) {
-                    best = (c.type, c.count, l)
+                // More creeps through is better. On a tie the wave with the most health: it puts the most
+                // pressure on the opponent's defense, who has to build to stop it. The candidates come from the
+                // most expensive type down, so with equal health the fewer, stronger creeps stay chosen – a
+                // swarm of weak creeps dies to a single splash tower and builds hardly any pressure.
+                let health = c.type.stats.health * c.count
+                // A mass of more than six weak creeps must get clearly more through (half again as many):
+                // the opponent builds on until it arrives, and one more splash tower stops the whole swarm.
+                let score = c.count > 6 ? l * 2 : l * 3
+                let better: Bool
+                if let b = best {
+                    let bestScore = b.count > 6 ? b.leaks * 2 : b.leaks * 3
+                    if score != bestScore {
+                        better = score > bestScore
+                    } else if style.likesSwarms, c.count > b.count, c.count <= 6, health * 10 >= b.health * 9 {
+                        better = true                       // a few medium creeps instead of a single one
+                    } else {
+                        better = health > b.health
+                    }
+                } else {
+                    better = true
                 }
+                if better { best = (c.type, c.count, l, health) }
             }
-            return best
+            return best.map { ($0.type, $0.count, $0.leaks) }
         }
         guard let plan = bestPlan(fund) else { return nil }
         // Nothing gets through: no point in feeding the opponent single creeps. Save at least one income

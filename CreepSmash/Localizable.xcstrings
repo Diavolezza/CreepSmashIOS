@@ -2525,6 +2525,16 @@
         }
       }
     },
+    "Tower value" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turmwert"
+          }
+        }
+      }
+    },
     "Towers" : {
       "localizations" : {
         "de" : {

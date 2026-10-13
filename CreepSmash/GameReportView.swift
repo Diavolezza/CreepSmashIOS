@@ -102,7 +102,9 @@ struct GameReportView: View {
         let items: [(String, String, String)] = [
             ("arrow.up.right", L("Creeps sent"), Format.credits(summary.creepsSent)),
             ("scope", L("Creeps shot down"), Format.credits(summary.creepsKilled)),
-            ("building.2.fill", L("Towers built"), Format.credits(summary.towersBuilt)),
+            // What the towers standing at the end cost (older records: how many were built).
+            summary.towerValue.map { ("building.2.fill", L("Tower value"), Format.credits($0)) }
+                ?? ("building.2.fill", L("Towers built"), Format.credits(summary.towersBuilt)),
             ("heart.slash.fill", L("Lives lost"), "\(summary.livesLost)"),
         ] + (summary.healthSent.map { [("arrow.up.forward.circle.fill", L("Attack strength"), Format.short($0))] } ?? [])
           + (summary.damageDealt.map { [("scope", L("Damage by towers"), Format.short($0))] } ?? [])

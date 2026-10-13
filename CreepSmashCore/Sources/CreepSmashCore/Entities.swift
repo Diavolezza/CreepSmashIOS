@@ -84,5 +84,7 @@ public struct PlayerBoard: Equatable, Sendable {
     public var isDead: Bool { lives <= 0 }
 
     public func tower(at cell: GridPoint) -> Tower? { towers.first { $0.cell == cell } }
+    /// What the standing towers cost, upgrades included.
+    public var towerValue: Int { towers.reduce(0) { $0 + $1.totalPrice } }
     public func tower(id: Int) -> Tower? { towers.first { $0.id == id } }
 }
