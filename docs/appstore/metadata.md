@@ -24,11 +24,12 @@ Character limits are Apple's; `tools/appstore/check.py` counts them.
 
 | Field | Value |
 |---|---|
-| Privacy policy URL | https://wanner-it.de/creepsmash/privacy.html |
-| Support URL | https://wanner-it.de/creepsmash/support.html |
+| Privacy policy URL | https://diavolezza.github.io/creepsmash/privacy.html |
+| Support URL | https://diavolezza.github.io/creepsmash/support.html |
 | Marketing URL | (optional, none) |
 
-The two pages are in `docs/appstore/web/` (both languages on one page each).
+The two pages are in `docs/appstore/web/` (both languages on one page each) and are published on GitHub Pages
+from the repository Diavolezza/Diavolezza.github.io (folder `creepsmash/`, next to the site's legal notice).
 
 ## App privacy ("nutrition label")
 
