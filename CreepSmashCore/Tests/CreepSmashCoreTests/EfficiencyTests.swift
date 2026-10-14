@@ -1,7 +1,7 @@
 import XCTest
 @testable import CreepSmashCore
 
-/// Efficiency of the defense in the evaluation: effectiveness, credits per 1,000 health shot away, zombie towers.
+/// Efficiency of the defense in the evaluation: effectiveness, utilization, share of the income, zombie towers.
 final class EfficiencyTests: XCTestCase {
     /// Computers play each other; returns the summary of every player.
     private func play(seed: UInt64, map: GameMap = .blue) -> [GameSummary] {
@@ -28,12 +28,22 @@ final class EfficiencyTests: XCTestCase {
                 XCTAssertGreaterThan(d.healthArrived, 0)
                 XCTAssertLessThanOrEqual(d.healthStopped, d.healthArrived + 1_000_000, "regeneration aside, no more than arrived")
                 XCTAssertTrue((0...1000).contains(d.stoppedPermille ?? -1))
-                XCTAssertNotNil(d.creditsPerThousandTenths)
+                XCTAssertNotNil(d.utilizationPermille)
+                XCTAssertTrue((1...1000).contains(d.towerSharePermille ?? -1))
                 XCTAssertLessThanOrEqual(d.zombieValue, s.towerValue ?? 0)
                 XCTAssertNotNil(s.samples.last?.players?.first?.capacity)
-                lines.append("EFF won=\(s.won) stopped=\(d.stoppedPermille ?? -1) cpt=\(d.creditsPerThousandTenths ?? -1) zombies=\(d.zombieTowers)/\(d.zombieValue)")
+                lines.append("EFF won=\(s.won) stopped=\(d.stoppedPermille ?? -1) used=\(d.utilizationPermille ?? -1) share=\(d.towerSharePermille ?? -1) zombies=\(d.zombieTowers)/\(d.zombieValue)")
             }
         }
         print(lines.joined(separator: "\n"))
+    }
+
+    /// Towers of a player who is out no longer count as idle (they are not wasted, there is just nothing to do).
+    func testTowersOfAPlayerWhoIsOutAreNoZombies() {
+        for seed: UInt64 in [3, 4] {
+            for s in play(seed: seed, map: GameMap.all[Int(seed) + 4]) where !s.won {
+                XCTAssertLessThan(s.myDefense?.zombieTowers ?? 0, 4, "seed \(seed)")
+            }
+        }
     }
 }

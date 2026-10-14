@@ -506,10 +506,19 @@ struct GameScreen: View {
         }
     }
 
+    /// Which leaderboard the game counts for: "Normal", or "Normal · 3 opponents".
+    private var leaderboardName: String? {
+        switch controller.mode {
+        case let .computer(level)?: level.label
+        case let .computerGroup(level, opponents)?: level.label + " · " + L("\(opponents) opponents")
+        default: nil
+        }
+    }
+
     /// New achievements and leaderboard place at the end of the game.
     @ViewBuilder private func outcomeView(_ outcome: PlayerRecord.Outcome) -> some View {
-        if let place = outcome.leaderboardPlace, case let .computer(level) = controller.mode {
-            Label(L("Place \(place) on the leaderboard (\(level.label))"), systemImage: "list.number")
+        if let place = outcome.leaderboardPlace, let board = leaderboardName {
+            Label(L("Place \(place) on the leaderboard (\(board))"), systemImage: "list.number")
                 .font(Theme.mono(13)).foregroundStyle(Theme.gold)
                 .padding(.top, Theme.s(4))
         }

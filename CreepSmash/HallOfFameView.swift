@@ -6,7 +6,9 @@ struct HallOfFameView: View {
     @Environment(\.dismiss) private var dismiss
     // Launch argument "-recordsTab statistics|achievements" opens another tab (screenshots).
     @State private var tab: Tab
-    @State private var level: Bot.Level = .normal
+    @State private var level: Bot.Level
+    /// Leaderboard for games against this many computers.
+    @State private var opponents: Int
     @State private var showLastGame = false
     private var record: PlayerRecord { ProgressStore.shared.record }
 
@@ -14,6 +16,12 @@ struct HallOfFameView: View {
 
     init(tab: Tab? = nil) {
         _tab = State(initialValue: tab ?? Tab(rawValue: UserDefaults.standard.string(forKey: "recordsTab") ?? "") ?? .leaderboard)
+        // The leaderboard opens where the last game against the computer belongs.
+        switch ProgressStore.shared.record.lastGame?.mode {
+        case let .computer(level)?: (_level, _opponents) = (State(initialValue: level), State(initialValue: 1))
+        case let .computerGroup(level, opponents)?: (_level, _opponents) = (State(initialValue: level), State(initialValue: opponents))
+        default: (_level, _opponents) = (State(initialValue: .normal), State(initialValue: 1))
+        }
     }
 
     var body: some View {
@@ -58,9 +66,15 @@ struct HallOfFameView: View {
             }
             .pickerStyle(.segmented)
             .frame(maxWidth: Theme.s(360))
-            let entries = record.leaderboard[level.rawValue] ?? []
+            Picker(L("Opponents"), selection: $opponents) {
+                ForEach(1...3, id: \.self) { n in Text(n == 1 ? L("1 opponent") : L("\(n) opponents")).tag(n) }
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: Theme.s(360))
+            let entries = record.leaderboard[PlayerRecord.leaderboardKey(level, opponents: opponents)] ?? []
             if entries.isEmpty {
-                Text(L("No wins against \(level.label) yet. The fastest wins appear here."))
+                Text(opponents == 1 ? L("No wins against \(level.label) yet. The fastest wins appear here.")
+                     : L("No wins against \(level.label) with \(opponents) opponents yet. The fastest wins appear here."))
                     .font(Theme.mono(14)).foregroundStyle(.gray)
                     .multilineTextAlignment(.center)
                     .padding(.top, Theme.s(30))

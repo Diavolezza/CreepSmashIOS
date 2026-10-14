@@ -131,15 +131,17 @@ struct GameReportView: View {
             items.append(Tile(symbol: "arrow.up.forward.circle.fill", title: L("Attack strength"), value: Format.short(health)))
         }
         if let defense = summary.myDefense {
-            // Effectiveness, efficiency per unit of work, idle capacity – each with the opponents' value.
+            // Was the service delivered, how much capacity stood idle, how much of the income went into
+            // it – each with the opponents' value.
             items.append(Tile(symbol: "shield.lefthalf.filled", title: L("Defense rate"),
                               value: Self.percent(defense.stoppedPermille),
                               detail: comparison(Self.percent(summary.opponentMean(\.stoppedPermille)))))
-            items.append(Tile(symbol: "leaf.fill", title: L("Cost per 1,000 stopped"),
-                              value: Self.tenths(defense.creditsPerThousandTenths),
-                              detail: comparison(Self.tenths(summary.opponentMean(\.creditsPerThousandTenths)))))
-            items.append(Tile(symbol: "moon.zzz.fill", title: L("Zombie towers"), value: "\(defense.zombieTowers)",
-                              detail: comparison(summary.opponentMean(\.zombieTowers).map(String.init) ?? "–")))
+            items.append(Tile(symbol: "gauge.with.dots.needle.33percent", title: L("Utilization"),
+                              value: Self.percent(defense.utilizationPermille),
+                              detail: comparison(Self.percent(summary.opponentMean(\.utilizationPermille)))))
+            items.append(Tile(symbol: "leaf.fill", title: L("Defense share"),
+                              value: Self.percent(defense.towerSharePermille),
+                              detail: comparison(Self.percent(summary.opponentMean(\.towerSharePermille)))))
         } else if let damage = summary.damageDealt {
             items.append(Tile(symbol: "scope", title: L("Damage by towers"), value: Format.short(damage)))
         }
@@ -161,12 +163,13 @@ struct GameReportView: View {
         (summary.opponentDefense.count > 1 ? L("Ø opponents") : L("Opponent")) + " " + value
     }
 
+    /// Whole percent; just below 100 with one decimal, so that 99.9 % never shows as 100 %.
     static func percent(_ permille: Int?) -> String {
-        permille.map { "\(($0 + 5) / 10) %" } ?? "–"
-    }
-
-    static func tenths(_ tenths: Int?) -> String {
-        tenths.map { (Double($0) / 10).formatted(.number.precision(.fractionLength(1)).locale(AppLanguage.current.locale)) } ?? "–"
+        guard let permille else { return "–" }
+        if (990..<1000).contains(permille) {
+            return (Double(permille) / 10).formatted(.number.precision(.fractionLength(1)).locale(AppLanguage.current.locale)) + " %"
+        }
+        return "\(permille >= 1000 ? permille / 10 : min(99, (permille + 5) / 10)) %"
     }
 
     private func tiles(_ items: [Tile], columns: Int) -> some View {
@@ -349,6 +352,8 @@ private struct CapacityChart: View {
     }
 
     private var names: [String] { [L("Capacity"), L("Incoming")] }
+    /// Name of the series dimension (not shown; a constant so Xcode does not take it as a text to translate).
+    private static let series = "Line"
     private var colors: [Color] { [Theme.dimGreen, GameReportView.colors[2]] }
     private let dashes: [[CGFloat]] = [[7, 4], []]
 
@@ -395,8 +400,8 @@ private struct CapacityChart: View {
             Chart {
                 ForEach(points) { p in
                     LineMark(x: .value(L("Minute"), p.minute), y: .value(L("Health"), p.value))
-                        .foregroundStyle(by: .value("Line", p.line))
-                        .lineStyle(by: .value("Line", p.line))
+                        .foregroundStyle(by: .value(Self.series, p.line))
+                        .lineStyle(by: .value(Self.series, p.line))
                         .interpolationMethod(.stepEnd)
                 }
                 // Rounds with lives lost: a red dot on the attack, the larger the more lives.
@@ -411,13 +416,13 @@ private struct CapacityChart: View {
                         .annotation(position: .top, overflowResolution: .init(x: .fit, y: .disabled)) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(HallOfFameView.minutes(Int(r.minute * 60))).foregroundStyle(.gray)
-                                Text("\(names[0]): \(Format.short(r.capacity))")
-                                Text("\(names[1]): \(Format.short(r.attack))")
+                                Text(verbatim: "\(names[0]): \(Format.short(r.capacity))")
+                                Text(verbatim: "\(names[1]): \(Format.short(r.attack))")
                                 if let utilization = r.utilization {
                                     Text(L("Utilization \(utilization) %"))
                                 }
                                 if r.livesLost > 0 {
-                                    Text("\(L("Lives lost")): \(r.livesLost)").foregroundStyle(Theme.warning)
+                                    Text(verbatim: "\(L("Lives lost")): \(r.livesLost)").foregroundStyle(Theme.warning)
                                 }
                             }
                             .font(Theme.mono(14))

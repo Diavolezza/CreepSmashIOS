@@ -155,14 +155,20 @@ Remake without a server (`CreepSmashCore/Sources/CreepSmashCore/Network.swift`):
 7. Send modes "next", "all" and "random" (the original's game modes 0–2) can be switched by each player during the game instead of being fixed for the whole game. "All" sends the creep to every living opponent; price, income bonus and health count once per recipient. "Random" draws the recipient from the game state, so every device draws the same.
 8. Layouts with more than two players: iPhone – the next opponent's board large, a chip per opponent above it (a tap shows that board); iPad landscape – the own board large, the opponents small next to it, the creeps beside them; iPad portrait – the opponents small at the top, the creeps below them, the own board at the bottom. The board that receives the own creeps is framed in gold.
 9. Statistics per player: damage done by the towers and health of all creeps sent (for the evaluation after the game).
-   The evaluation also rates the defense with three Green IT terms, each compared with the opponents: effectiveness
-   ("defense rate": share of the arriving health shot away), efficiency per unit of work ("cost per 1,000 stopped":
-   credits put into towers – building and upgrades minus refunds – per 1,000 health shot away, lower is better),
-   and idle capacity ("zombie towers": standing at the end, ready for at least 2 minutes and busy shooting or
-   reloading less than 5 % of that time). A chart shows per income round the installed capacity (the damage all towers
-   could deal if creeps always passed them) and the arriving health; the gap between them is overprovisioning, red
-   dots mark the rounds with lives lost (capacity too small for the peak), and touching a round shows its utilization. Achievements: "Efficient" (at least 20 % lower cost per 1,000 stopped than the
-   opponents), "No zombies" (a game of at least 5 minutes without one), "Lean" (less put into towers than every opponent).
+   The evaluation also rates the defense with three Green IT terms, each compared with the opponents: was the service
+   delivered ("defense rate": share of the arriving health shot away; just below 100 % it shows one decimal), how much
+   capacity stood idle ("utilization": arriving health in relation to the installed capacity – the damage all towers
+   could deal if creeps always passed them – summed up while the player is in the game), and how much of the income
+   went into the defense ("defense share": credits put into towers – building and upgrades minus refunds – of all
+   credits earned, start credits included). Credits per health shot away are not shown: they depend on how much the
+   opponents send and on the own income, and an overrun defense looks cheap. A chart shows per income round the
+   installed capacity and the arriving health; the gap between them is overprovisioning, red dots mark the rounds
+   with lives lost (capacity too small for the peak), and touching a round shows its utilization. Towers standing
+   ready for at least 2 minutes while their player is in the game and busy less than 5 % of that time are mentioned
+   below the chart as zombie towers (rare, because the path leads past all towers). Achievements: "Efficient" (a win
+   with a defense rate of at least 90 % and a utilization of at least 40 %), "Lean" (a win with a smaller defense
+   share than every opponent).
+   The leaderboard keeps the fastest wins per difficulty and number of computer opponents (1, 2 or 3).
 10. Graphics: towers and creeps are own designs (`tools/sprites/sprites.py`), line drawings rendered large and scaled down smoothly. Colors mean the same as in the original: a tower's level is green, yellow, red, white; creeps cycle green, gray, yellow, red in each group of four, and white creeps (Ray, Shark, Phoenix) cannot be slowed down. A tower turns its barrel towards the creep it shoots at (display only, not part of the game state).
 11. Sound effects are synthesized (`tools/sounds/sfx.py`), not the original recordings; same events, same file names.
 12. A tower does not fire while it is being built or upgraded (in the original it fired during the upgrade). It still fires while it is sold or changes its target strategy.

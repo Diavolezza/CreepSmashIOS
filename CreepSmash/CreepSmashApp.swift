@@ -259,9 +259,9 @@ struct RootView: View {
                                           towerValue: i == 13 ? 38_500 : nil,
                                           defense: i == 13 ? [
                                               DefenseRecord(healthArrived: 2_050_000, healthStopped: 1_930_000, towerSpent: 41_200,
-                                                            earned: 410_000, zombieTowers: 2, zombieValue: 1_250),
+                                                            earned: 410_000, zombieTowers: 0, zombieValue: 0, capacity: 5_400_000),
                                               DefenseRecord(healthArrived: 1_980_000, healthStopped: 1_610_000, towerSpent: 47_900,
-                                                            earned: 380_000, zombieTowers: 4, zombieValue: 3_100),
+                                                            earned: 380_000, zombieTowers: 0, zombieValue: 0, capacity: 2_900_000),
                                           ] : nil)
                 _ = ProgressStore.shared.add(summary, playerName: displayName)
             }

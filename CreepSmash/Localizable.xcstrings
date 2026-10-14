@@ -685,16 +685,6 @@
         }
       }
     },
-    "Cost per 1,000 stopped" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kosten je 1.000 Abwehr"
-          }
-        }
-      }
-    },
     "Credits" : {
       "localizations" : {
         "de" : {
@@ -848,6 +838,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Abwehrquote"
+          }
+        }
+      }
+    },
+    "Defense share" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abwehranteil"
           }
         }
       }
@@ -1684,22 +1684,22 @@
         }
       }
     },
+    "No wins against %@ with %lld opponents yet. The fastest wins appear here." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch keine Siege gegen %@ mit %lld Gegnern. Hier erscheinen die schnellsten Siege."
+          }
+        }
+      }
+    },
     "No wins against %@ yet. The fastest wins appear here." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Noch keine Siege gegen %@. Hier erscheinen die schnellsten Siege."
-          }
-        }
-      }
-    },
-    "No zombies" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Keine Zombies"
           }
         }
       }
@@ -2735,6 +2735,16 @@
         }
       }
     },
+    "Utilization" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auslastung"
+          }
+        }
+      }
+    },
     "Utilization %lld %%" : {
       "localizations" : {
         "de" : {
@@ -2890,32 +2900,22 @@
         }
       }
     },
-    "Win %@ games of at least 5 minutes without a zombie tower" : {
+    "Win %@ games stopping at least %lld %% with a utilization of at least %lld %%" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gewinne %@ Spiele von mindestens 5 Minuten ohne Zombie-Turm"
+            "value" : "Gewinne %@ Spiele mit mindestens %lld %% Abwehrquote und mindestens %lld %% Auslastung"
           }
         }
       }
     },
-    "Win %@ games with at least %lld %% lower defense costs than your opponents" : {
+    "Win %@ games with a smaller defense share than every opponent" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gewinne %1$@ Spiele mit mindestens %2$lld %% geringeren Abwehrkosten als deine Gegner"
-          }
-        }
-      }
-    },
-    "Win %@ games with less put into towers than every opponent" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gewinne %@ Spiele mit weniger Credits in Türmen als jeder Gegner"
+            "value" : "Gewinne %@ Spiele mit kleinerem Abwehranteil als jeder Gegner"
           }
         }
       }
@@ -3159,16 +3159,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Deine Pause hat länger als 2 Minuten gedauert – du bist ausgeschieden."
-          }
-        }
-      }
-    },
-    "Zombie towers" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zombie-Türme"
           }
         }
       }

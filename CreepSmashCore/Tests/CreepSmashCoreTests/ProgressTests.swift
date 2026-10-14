@@ -9,7 +9,7 @@ final class ProgressTests: XCTestCase {
                     builtUltimate: false, sentColossus: false, samples: [], date: Date(timeIntervalSince1970: 0))
     }
 
-    func testGroupGamesCountForTheirLevelButNotTheLeaderboard() {
+    func testGroupGamesCountForTheirLevelAndHaveTheirOwnLeaderboard() {
         var record = PlayerRecord()
         let group = GameSummary(mode: .computerGroup(.normal, opponents: 3), mapID: "blue", won: true,
                                 durationTicks: 12_000, livesLeft: 10, livesLost: 10, maxIncome: 2_000, creepsSent: 40,
@@ -19,7 +19,44 @@ final class ProgressTests: XCTestCase {
         record.add(summary(won: false, level: .normal), playerName: "Me")
         XCTAssertEqual(record.gamesByLevel["normal"], 2)
         XCTAssertEqual(record.winsByLevel["normal"], 1)
-        XCTAssertNil(record.leaderboard["normal"], "only one-on-one wins enter the leaderboard")
+        XCTAssertNil(record.leaderboard["normal"], "a win against three is not on the leaderboard against one")
+        XCTAssertEqual(record.leaderboard[PlayerRecord.leaderboardKey(.normal, opponents: 3)]?.count, 1)
+    }
+
+    func testTheLastGroupWinIsEnteredLater() {
+        var record = PlayerRecord()
+        let group = GameSummary(mode: .computerGroup(.normal, opponents: 3), mapID: "blue", won: true,
+                                durationTicks: 12_000, livesLeft: 10, livesLost: 10, maxIncome: 2_000, creepsSent: 40,
+                                creepsKilled: 50, towersBuilt: 12, builtUltimate: false, sentColossus: false,
+                                samples: [], date: Date(timeIntervalSince1970: 7), playerNames: ["Geri", "CPU1", "CPU2", "CPU3"], me: 0)
+        record.lastGame = group
+        record.enterLastGroupWin()
+        record.enterLastGroupWin()
+        let board = record.leaderboard["normal-3"]
+        XCTAssertEqual(board?.count, 1)
+        XCTAssertEqual(board?.first?.name, "Geri")
+    }
+
+    func testEfficientAndLeanWins() {
+        func game(_ mine: DefenseRecord, _ theirs: DefenseRecord) -> GameSummary {
+            var s = summary(won: true)
+            s.me = 0
+            s.defense = [mine, theirs]
+            return s
+        }
+        var record = PlayerRecord()
+        // Stopped 95 %, used 50 %, 10 % of the income in towers against 20 %: efficient and lean.
+        record.add(game(DefenseRecord(healthArrived: 1000, healthStopped: 950, towerSpent: 100, earned: 1000, zombieTowers: 0, zombieValue: 0, capacity: 2000),
+                        DefenseRecord(healthArrived: 1000, healthStopped: 600, towerSpent: 200, earned: 1000, zombieTowers: 0, zombieValue: 0, capacity: 1000)),
+                   playerName: "A")
+        XCTAssertEqual(record.efficientWins, 1)
+        XCTAssertEqual(record.leanWins, 1)
+        // Much more capacity than needed (used 20 %), and a larger share: neither.
+        record.add(game(DefenseRecord(healthArrived: 1000, healthStopped: 990, towerSpent: 300, earned: 1000, zombieTowers: 0, zombieValue: 0, capacity: 5000),
+                        DefenseRecord(healthArrived: 1000, healthStopped: 600, towerSpent: 200, earned: 1000, zombieTowers: 0, zombieValue: 0, capacity: 1000)),
+                   playerName: "A")
+        XCTAssertEqual(record.efficientWins, 1)
+        XCTAssertEqual(record.leanWins, 1)
     }
 
     func testStatsOfARealGame() {

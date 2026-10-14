@@ -14,6 +14,7 @@ final class ProgressStore {
         if let data = UserDefaults.standard.data(forKey: Self.key),
            let saved = try? JSONDecoder().decode(PlayerRecord.self, from: data) {
             record = saved
+            record.enterLastGroupWin()
         } else {
             record = PlayerRecord()
         }
@@ -39,7 +40,6 @@ extension Achievement {
         case "closeCall": L("Close call")
         case "fastWin": L("Lightning win")
         case "efficient": L("Efficient")
-        case "noZombies": L("No zombies")
         case "lean": L("Lean")
         case "allMaps": L("Globetrotter")
         case "streak": L("On a roll")
@@ -64,9 +64,8 @@ extension Achievement {
         case "flawless": return L("Win \(n) games without losing a life")
         case "closeCall": return L("Win with only one life left")
         case "fastWin": return L("Win \(n) games within 8 minutes")
-        case "efficient": return L("Win \(n) games with at least \(100 - PlayerRecord.efficientPercent) % lower defense costs than your opponents")
-        case "noZombies": return L("Win \(n) games of at least 5 minutes without a zombie tower")
-        case "lean": return L("Win \(n) games with less put into towers than every opponent")
+        case "efficient": return L("Win \(n) games stopping at least \(PlayerRecord.efficientStoppedPermille / 10) % with a utilization of at least \(PlayerRecord.efficientUtilizationPermille / 10) %")
+        case "lean": return L("Win \(n) games with a smaller defense share than every opponent")
         case "allMaps": return L("Win on every map")
         case "streak": return L("Win \(n) games in a row")
         case "onlineWins": return L("Win \(n) multiplayer games")
@@ -88,7 +87,6 @@ extension Achievement {
         case "closeCall": "heart.slash.fill"
         case "fastWin": "bolt.fill"
         case "efficient": "leaf.fill"
-        case "noZombies": "moon.zzz.fill"
         case "lean": "scalemass.fill"
         case "allMaps": "map.fill"
         case "streak": "flame.fill"
