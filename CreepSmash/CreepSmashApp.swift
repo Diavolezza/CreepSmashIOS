@@ -233,7 +233,15 @@ struct RootView: View {
                 GameSample(tick: 100 + k * 300, myIncome: 200 + k * k * 9 + k * 40, opponentIncome: 200 + k * k * 8 + k * 25,
                            myLives: max(14, 20 - max(0, k - 26) / 2), opponentLives: max(0, 20 - max(0, k - 22) * 2),
                            myDamage: k * k * k * 40, opponentDamage: k * k * k * 33,
-                           myHealthSent: k * k * k * 38, opponentHealthSent: k * k * k * 36)
+                           myHealthSent: k * k * k * 38, opponentHealthSent: k * k * k * 36,
+                           players: [
+                               PlayerSample(income: 200 + k * k * 9 + k * 40, lives: max(14, 20 - max(0, k - 26) / 2),
+                                            damage: k * k * k * 40, healthSent: k * k * k * 38,
+                                            arrived: k * k * k * 42, capacity: 5_000 + k * k * 450),
+                               PlayerSample(income: 200 + k * k * 8 + k * 25, lives: max(0, 20 - max(0, k - 22) * 2),
+                                            damage: k * k * k * 33, healthSent: k * k * k * 36,
+                                            arrived: k * k * k * 40, capacity: 4_000 + k * k * 380),
+                           ])
             }
             for i in 0..<14 {
                 let level = Bot.Level.allCases[i % 3]
@@ -246,8 +254,15 @@ struct RootView: View {
                                           opponentName: "Computer · " + level.label,
                                           damageDealt: i == 13 ? 36 * 36 * 36 * 40 : nil,
                                           healthSent: i == 13 ? 36 * 36 * 36 * 38 : nil,
-                                          towerValue: i == 13 ? 38_500 : nil, towerSpent: i == 13 ? 41_200 : nil,
-                                          towerBusyPermille: i == 13 ? 386 : nil)
+                                          playerNames: i == 13 ? [displayName, "Computer · " + level.label] : nil,
+                                          me: i == 13 ? 0 : nil,
+                                          towerValue: i == 13 ? 38_500 : nil,
+                                          defense: i == 13 ? [
+                                              DefenseRecord(healthArrived: 2_050_000, healthStopped: 1_930_000, towerSpent: 41_200,
+                                                            earned: 410_000, zombieTowers: 2, zombieValue: 1_250),
+                                              DefenseRecord(healthArrived: 1_980_000, healthStopped: 1_610_000, towerSpent: 47_900,
+                                                            earned: 380_000, zombieTowers: 4, zombieValue: 3_100),
+                                          ] : nil)
                 _ = ProgressStore.shared.add(summary, playerName: displayName)
             }
         }

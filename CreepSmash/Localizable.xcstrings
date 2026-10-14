@@ -524,6 +524,16 @@
         }
       }
     },
+    "Capacity" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapazität"
+          }
+        }
+      }
+    },
     "Cheap laser, hits one target." : {
       "localizations" : {
         "de" : {
@@ -675,6 +685,16 @@
         }
       }
     },
+    "Cost per 1,000 stopped" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kosten je 1.000 Abwehr"
+          }
+        }
+      }
+    },
     "Credits" : {
       "localizations" : {
         "de" : {
@@ -801,16 +821,6 @@
         }
       }
     },
-    "Damage per tower credit" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Schaden je Turm-Credit"
-          }
-        }
-      }
-    },
     "Date" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -828,6 +838,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Verteidigen"
+          }
+        }
+      }
+    },
+    "Defense rate" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abwehrquote"
+          }
+        }
+      }
+    },
+    "Defense: capacity and attack" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abwehr: Kapazität und Angriff"
           }
         }
       }
@@ -1248,6 +1278,16 @@
         }
       }
     },
+    "Incoming" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angriff"
+          }
+        }
+      }
+    },
     "Invader" : {
       "localizations" : {
         "de" : {
@@ -1314,6 +1354,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bestenliste"
+          }
+        }
+      }
+    },
+    "Lean" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schlank"
           }
         }
       }
@@ -1614,16 +1664,6 @@
         }
       }
     },
-    "No idling" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kein Leerlauf"
-          }
-        }
-      }
-    },
     "No open round nearby yet." : {
       "localizations" : {
         "de" : {
@@ -1654,6 +1694,16 @@
         }
       }
     },
+    "No zombies" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Zombies"
+          }
+        }
+      }
+    },
     "Normal" : {
       "localizations" : {
         "de" : {
@@ -1670,6 +1720,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Zu wenig Credits"
+          }
+        }
+      }
+    },
+    "Ø opponents" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ø Gegner"
           }
         }
       }
@@ -1791,6 +1851,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pendel"
+          }
+        }
+      }
+    },
+    "Per income round (15 s). Capacity: what your towers could shoot away if creeps passed them all the time. The gap to the attack is defense standing idle; red dots show where it was not enough." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je Einkommensrunde (15 s). Kapazität: was deine Türme wegschießen könnten, wenn ständig Creeps vorbeikämen. Der Abstand zum Angriff ist Abwehr, die ungenutzt bereitsteht; rote Punkte zeigen, wo sie nicht gereicht hat."
           }
         }
       }
@@ -2555,16 +2625,6 @@
         }
       }
     },
-    "Tower utilization" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Turm-Auslastung"
-          }
-        }
-      }
-    },
     "Tower value" : {
       "localizations" : {
         "de" : {
@@ -2671,6 +2731,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Upgrade läuft"
+          }
+        }
+      }
+    },
+    "Utilization %lld %%" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auslastung %lld %%"
           }
         }
       }
@@ -2820,22 +2890,32 @@
         }
       }
     },
-    "Win %@ games with at least %lld damage per tower credit" : {
+    "Win %@ games of at least 5 minutes without a zombie tower" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gewinne %1$@ Spiele mit mindestens %2$lld Schaden je Turm-Credit"
+            "value" : "Gewinne %@ Spiele von mindestens 5 Minuten ohne Zombie-Turm"
           }
         }
       }
     },
-    "Win %@ games with your towers busy at least %lld %% of the time" : {
+    "Win %@ games with at least %lld %% lower defense costs than your opponents" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gewinne %1$@ Spiele, in denen deine Türme mindestens %2$lld %% der Zeit arbeiten"
+            "value" : "Gewinne %1$@ Spiele mit mindestens %2$lld %% geringeren Abwehrkosten als deine Gegner"
+          }
+        }
+      }
+    },
+    "Win %@ games with less put into towers than every opponent" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gewinne %@ Spiele mit weniger Credits in Türmen als jeder Gegner"
           }
         }
       }
@@ -3079,6 +3159,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Deine Pause hat länger als 2 Minuten gedauert – du bist ausgeschieden."
+          }
+        }
+      }
+    },
+    "Zombie towers" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zombie-Türme"
+          }
+        }
+      }
+    },
+    "Zombie towers at the end: %lld, together %@ credits." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zombie-Türme am Ende: %1$lld, zusammen %2$@ Credits."
           }
         }
       }

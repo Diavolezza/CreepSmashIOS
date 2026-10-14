@@ -1,7 +1,7 @@
 import XCTest
 @testable import CreepSmashCore
 
-/// Efficiency of the defense in the evaluation: damage per credit put into towers, and utilization.
+/// Efficiency of the defense in the evaluation: effectiveness, credits per 1,000 health shot away, zombie towers.
 final class EfficiencyTests: XCTestCase {
     /// Computers play each other; returns the summary of every player.
     private func play(seed: UInt64, map: GameMap = .blue) -> [GameSummary] {
@@ -16,17 +16,22 @@ final class EfficiencyTests: XCTestCase {
         return stats.map { $0.summary(game: match.game, won: match.game.winner == $0.me) }
     }
 
-    func testEfficiencyValuesArePlausible() {
+    func testDefenseRecordsArePlausible() {
         var lines: [String] = []
         for seed: UInt64 in [1, 2] {
-            for s in play(seed: seed) {
-                let spent = s.towerSpent ?? 0, value = s.towerValue ?? 0
-                XCTAssertGreaterThan(spent, 0)
-                // What stands at the end was paid for (selling refunds less than it cost).
-                XCTAssertGreaterThanOrEqual(spent, value * 3 / 4)
-                XCTAssertNotNil(s.damagePerCredit)
-                XCTAssertTrue((1...1000).contains(s.towerBusyPermille ?? 0))
-                lines.append("EFF won=\(s.won) dpc=\(s.damagePerCredit ?? -1) busy=\(s.towerBusyPermille ?? -1) spent=\(spent)")
+            let summaries = play(seed: seed)
+            for s in summaries {
+                guard let d = s.myDefense else { return XCTFail("no defense record") }
+                // Every device sees the same records for all players.
+                XCTAssertEqual(s.defense, summaries[0].defense)
+                XCTAssertGreaterThan(d.towerSpent, 0)
+                XCTAssertGreaterThan(d.healthArrived, 0)
+                XCTAssertLessThanOrEqual(d.healthStopped, d.healthArrived + 1_000_000, "regeneration aside, no more than arrived")
+                XCTAssertTrue((0...1000).contains(d.stoppedPermille ?? -1))
+                XCTAssertNotNil(d.creditsPerThousandTenths)
+                XCTAssertLessThanOrEqual(d.zombieValue, s.towerValue ?? 0)
+                XCTAssertNotNil(s.samples.last?.players?.first?.capacity)
+                lines.append("EFF won=\(s.won) stopped=\(d.stoppedPermille ?? -1) cpt=\(d.creditsPerThousandTenths ?? -1) zombies=\(d.zombieTowers)/\(d.zombieValue)")
             }
         }
         print(lines.joined(separator: "\n"))

@@ -39,7 +39,8 @@ extension Achievement {
         case "closeCall": L("Close call")
         case "fastWin": L("Lightning win")
         case "efficient": L("Efficient")
-        case "busy": L("No idling")
+        case "noZombies": L("No zombies")
+        case "lean": L("Lean")
         case "allMaps": L("Globetrotter")
         case "streak": L("On a roll")
         case "onlineWins": L("Duelist")
@@ -63,8 +64,9 @@ extension Achievement {
         case "flawless": return L("Win \(n) games without losing a life")
         case "closeCall": return L("Win with only one life left")
         case "fastWin": return L("Win \(n) games within 8 minutes")
-        case "efficient": return L("Win \(n) games with at least \(PlayerRecord.efficientDamagePerCredit) damage per tower credit")
-        case "busy": return L("Win \(n) games with your towers busy at least \(PlayerRecord.busyPermille / 10) % of the time")
+        case "efficient": return L("Win \(n) games with at least \(100 - PlayerRecord.efficientPercent) % lower defense costs than your opponents")
+        case "noZombies": return L("Win \(n) games of at least 5 minutes without a zombie tower")
+        case "lean": return L("Win \(n) games with less put into towers than every opponent")
         case "allMaps": return L("Win on every map")
         case "streak": return L("Win \(n) games in a row")
         case "onlineWins": return L("Win \(n) multiplayer games")
@@ -86,7 +88,8 @@ extension Achievement {
         case "closeCall": "heart.slash.fill"
         case "fastWin": "bolt.fill"
         case "efficient": "leaf.fill"
-        case "busy": "gauge"
+        case "noZombies": "moon.zzz.fill"
+        case "lean": "scalemass.fill"
         case "allMaps": "map.fill"
         case "streak": "flame.fill"
         case "onlineWins": "person.2.fill"
