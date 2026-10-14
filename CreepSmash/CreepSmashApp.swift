@@ -89,10 +89,16 @@ struct RootView: View {
             if let last = ProgressStore.shared.record.lastGame { GameReportView(summary: last, myName: displayName) }
         }
         .onAppear {
-            matchmaker.onMatch = { match in startOnline(match) }
+            matchmaker.onMatch = { match, session in startOnline(match, gameCenter: session) }
+            // A round found through Game Center: its lobby runs like one nearby.
+            GameCenter.shared.onMatch = { match in
+                withoutSliding { showMultiplayer = true }
+                matchmaker.gameCenter(GameCenterSession(match: match), name: networkName)
+            }
             // onAppear fires again after a language switch; launch arguments count only once.
             guard !handledLaunchArguments else { return }
             handledLaunchArguments = true
+            GameCenter.shared.authenticate()
             handleLaunchArguments()
         }
     }
@@ -174,11 +180,12 @@ struct RootView: View {
         self.controller = controller
     }
 
-    private func startOnline(_ match: NetworkMatch) {
+    private func startOnline(_ match: NetworkMatch, gameCenter: GameCenterSession? = nil) {
         withoutSliding { showMultiplayer = false }
         controller?.stop()
         let autopilot = ProcessInfo.processInfo.arguments.contains("-autopilot")
         let controller = GameController(match: match, mode: autopilot ? nil : .online)
+        controller.gameCenter = gameCenter
         if autopilot {
             controller.autopilot = Bot(player: match.localPlayer, level: .normal, map: match.game.map)
         }

@@ -13,6 +13,7 @@ Two to four players, landscape: your own board and your opponent's board side by
 | `CreepSmash.xcodeproj` | Xcode project (Xcode 16 or later; files in `CreepSmash/` are picked up automatically) |
 | `Config/Info.plist` | Info.plist keys Xcode cannot generate (local network / Bonjour) |
 | `docs/SPEC.md` | Game rules and values from the original, deliberate deviations |
+| `docs/appstore/` | App Store texts (English, German), privacy policy and support page (`web/`), Game Center identifiers |
 | `tools/` | Python scripts that generate the maps, the tower and creep sprites, the sound effects, the music, the logo and the app icon |
 
 ## Build and run

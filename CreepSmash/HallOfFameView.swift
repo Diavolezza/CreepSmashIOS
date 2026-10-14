@@ -26,7 +26,13 @@ struct HallOfFameView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PageHeader(L("Records")) { withoutSliding { dismiss() } }
+            PageHeader(L("Records"), onBack: { withoutSliding { dismiss() } }) {
+                // Game Center's own leaderboards and achievements, when signed in.
+                if GameCenter.shared.isAuthenticated {
+                    Button(L("Game Center")) { GameCenter.shared.showDashboard() }
+                        .font(Theme.mono(14)).foregroundStyle(Theme.green)
+                }
+            }
                 .padding(.horizontal, Theme.s(20))
                 .padding(.vertical, Theme.s(10))
             VStack(spacing: Theme.s(12)) {

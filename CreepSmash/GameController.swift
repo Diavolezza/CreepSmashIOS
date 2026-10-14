@@ -85,6 +85,14 @@ final class GameController {
     /// The host is gone and another device takes over (online game with more than two).
     private(set) var handoverNote: String?
     @ObservationIgnored private var handoverFinder: NearbyFinder?
+    /// Game Center round: the session carries the connections; a handover runs over it instead of nearby.
+    @ObservationIgnored var gameCenter: GameCenterSession? {
+        didSet {
+            guard let network, let link = gameCenter?.link else { meshHandover = nil; return }
+            meshHandover = MeshHandover(link: link, match: network)
+        }
+    }
+    @ObservationIgnored private var meshHandover: MeshHandover?
     /// Online game cannot go on (the devices compute different results, or the host is gone).
     private(set) var connectionProblem: String?
     private(set) var toast: Toast? = nil
@@ -213,6 +221,7 @@ final class GameController {
                                     playerNames: game.players.indices.map(displayName))
         self.summary = summary
         outcome = ProgressStore.shared.add(summary, playerName: playerName)
+        GameCenter.shared.report(summary, record: ProgressStore.shared.record)
     }
 
     /// Leave the game. Online this means giving up; the others go on (if the host leaves, another
@@ -230,6 +239,7 @@ final class GameController {
         handoverFinder?.stop()
         handoverFinder = nil
         network?.leave()
+        gameCenter?.disconnect()
     }
 
     private func networkStatusChanged(_ status: NetworkMatch.Status) {
@@ -282,8 +292,10 @@ final class GameController {
     private func handoverChanged(_ role: NetworkMatch.Handover?) {
         handoverFinder?.stop()
         handoverFinder = nil
+        meshHandover?.update(role)
         guard let role, let network else { handoverNote = nil; return }
         handoverNote = L("\(displayName(network.hostPlayer)) is gone – the connection is being rebuilt …")
+        if meshHandover != nil { return }
         let finder = NearbyFinder()
         let code = network.setup.code
         switch role {

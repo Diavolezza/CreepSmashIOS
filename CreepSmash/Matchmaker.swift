@@ -1,8 +1,8 @@
 import Foundation
 import CreepSmashCore
 
-/// Finds other players and runs the lobby – regardless of which network they are found on. Currently
-/// nearby (Bonjour); Game Center will be added as another source.
+/// Finds other players and runs the lobby – regardless of which network they are found on: nearby
+/// (Bonjour) or through Game Center (a `GameCenterSession`, see `gameCenter(_:name:)`).
 @MainActor
 @Observable
 final class Matchmaker {
@@ -38,8 +38,8 @@ final class Matchmaker {
     private(set) var detail = ""
     /// A nearby device runs another version of the app, so the two cannot play together (shown during the search).
     private(set) var versionNotice: String?
-    /// Called with the ready game.
-    var onMatch: ((NetworkMatch) -> Void)?
+    /// Called with the ready game and, for a Game Center round, its session (it carries the connections).
+    var onMatch: ((NetworkMatch, GameCenterSession?) -> Void)?
     /// Tests: the host starts by itself as soon as this many people are in the round.
     @ObservationIgnored var autoStartPeople: Int?
     /// Tests: at that start, the free seats get computers of this level.
@@ -49,6 +49,7 @@ final class Matchmaker {
     @ObservationIgnored private var lister: NearbyFinder?
     @ObservationIgnored private var hostLobby: HostLobby?
     @ObservationIgnored private var guestLobby: GuestLobby?
+    @ObservationIgnored private var gameCenterSession: GameCenterSession?
     @ObservationIgnored private var code = ""
     @ObservationIgnored private var playerName = ""
 
@@ -103,7 +104,21 @@ final class Matchmaker {
         nearby?.join(code: code)
     }
 
+    /// Online round through Game Center: the players found each other there. The device with the smallest
+    /// player ID opens the round with a randomly drawn map; it starts as soon as everyone is in.
+    func gameCenter(_ session: GameCenterSession, name: String) {
+        cancel()
+        playerName = name
+        state = .connecting
+        gameCenterSession = session
+        session.onFailure = { [weak self] message in self?.failed(message) }
+        session.onReady = { [weak self] link in self?.gameCenterReady(link) }
+        session.begin()
+    }
+
     func cancel() {
+        gameCenterSession?.disconnect()
+        gameCenterSession = nil
         nearby?.stop()
         nearby = nil
         hostLobby?.close()
@@ -179,6 +194,8 @@ final class Matchmaker {
     }
 
     private func failed(_ message: String) {
+        gameCenterSession?.disconnect()
+        gameCenterSession = nil
         nearby?.stop()
         nearby = nil
         hostLobby?.close()
@@ -228,20 +245,39 @@ final class Matchmaker {
             let showsLobby = { if case .joining = self.state { true } else { false } }()
             nearby = nil
             state = .connecting
-            let lobby = GuestLobby(transport: transport, name: playerName)
-            lobby.onChange = { [weak self] in
-                MainActor.assumeIsolated { if showsLobby { self?.guestLobbyChanged() } }
-            }
-            lobby.onResult = { [weak self] result in
-                MainActor.assumeIsolated {
-                    switch result {
-                    case let .ready(match): self?.started(match)
-                    case let .failed(failure): self?.failed(failure.message)
-                    }
+            joinLobby(over: transport, showsLobby: showsLobby)
+        }
+    }
+
+    private func joinLobby(over transport: Transport, showsLobby: Bool) {
+        let lobby = GuestLobby(transport: transport, name: playerName)
+        lobby.onChange = { [weak self] in
+            MainActor.assumeIsolated { if showsLobby { self?.guestLobbyChanged() } }
+        }
+        lobby.onResult = { [weak self] result in
+            MainActor.assumeIsolated {
+                switch result {
+                case let .ready(match): self?.started(match)
+                case let .failed(failure): self?.failed(failure.message)
                 }
             }
-            guestLobby = lobby
         }
+        guestLobby = lobby
+    }
+
+    private func gameCenterReady(_ link: MeshLink) {
+        guard link.host == link.me else {
+            return joinLobby(over: link.transport(to: link.host), showsLobby: false)
+        }
+        // The code only names the round for a handover; Game Center rounds are not listed nearby.
+        let lobby = HostLobby(mapID: GameMap.all.randomElement()!.id, name: playerName, seats: link.peers.count + 1,
+                              code: Self.makeCode())
+        lobby.startsWhenFull = true
+        lobby.onStart = { [weak self] match in
+            MainActor.assumeIsolated { self?.started(match) }
+        }
+        hostLobby = lobby
+        for peer in link.peers.sorted() { lobby.add(link.transport(to: peer)) }
     }
 
     private func hostLobbyChanged() {
@@ -273,6 +309,8 @@ final class Matchmaker {
     }
 
     private func started(_ match: NetworkMatch) {
+        let session = gameCenterSession
+        gameCenterSession = nil
         nearby?.stop()
         nearby = nil
         hostLobby = nil
@@ -281,6 +319,6 @@ final class Matchmaker {
         state = .idle
         detail = ""
         versionNotice = nil
-        onMatch?(match)
+        onMatch?(match, session)
     }
 }

@@ -57,6 +57,7 @@ extension Achievement {
 
     /// What has to be done for the given threshold.
     func requirement(_ threshold: Int) -> String {
+        if threshold == 1, let once = requirementOnce { return once }
         let n = Format.credits(threshold)
         switch id {
         case "wins": return L("Win \(n) games")
@@ -77,6 +78,20 @@ extension Achievement {
         case "colossus": return L("Send a Fat Colossus")
         case "games": return L("Play \(n) games")
         default: return n
+        }
+    }
+
+    /// The requirement for the first tier where it is a single game ("Win a game", not "Win 1 games").
+    private var requirementOnce: String? {
+        switch id {
+        case "wins": L("Win a game")
+        case "winsHard": L("Beat the computer on Hard once")
+        case "flawless": L("Win a game without losing a life")
+        case "fastWin": L("Win a game within 8 minutes")
+        case "efficient": L("Win a game stopping at least \(PlayerRecord.efficientStoppedPermille / 10) % with a utilization of at least \(PlayerRecord.efficientUtilizationPermille / 10) %")
+        case "lean": L("Win a game with a smaller defense share than every opponent")
+        case "onlineWins": L("Win a multiplayer game")
+        default: nil
         }
     }
 

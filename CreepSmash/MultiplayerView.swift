@@ -83,6 +83,12 @@ struct MultiplayerView: View {
             Button(L("Find opponent")) { matchmaker.quick(name: name) }
                 .buttonStyle(MenuButtonStyle(minWidth: 0, fill: true, shrinks: false))
                 .layoutPriority(1)
+            // Players anywhere, through Game Center (2 to 4, friends or anyone): only when signed in.
+            if GameCenter.shared.isAuthenticated {
+                Button(L("Game Center")) { GameCenter.shared.findMatch() }
+                    .buttonStyle(MenuButtonStyle(minWidth: 0, fill: true, shrinks: false))
+                    .layoutPriority(1)
+            }
         }
     }
 

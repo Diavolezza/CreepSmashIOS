@@ -390,6 +390,16 @@
         }
       }
     },
+    "Beat the computer on Hard once" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schlage den Computer einmal auf Schwer"
+          }
+        }
+      }
+    },
     "being sold" : {
       "localizations" : {
         "de" : {
@@ -1088,6 +1098,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "frei"
+          }
+        }
+      }
+    },
+    "Game Center" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Game Center"
           }
         }
       }
@@ -2946,6 +2966,66 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Gewinne %@ Mehrspieler-Spiele"
+          }
+        }
+      }
+    },
+    "Win a game" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gewinne ein Spiel"
+          }
+        }
+      }
+    },
+    "Win a game stopping at least %lld %% with a utilization of at least %lld %%" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gewinne ein Spiel mit mindestens %lld %% Abwehrquote und mindestens %lld %% Auslastung"
+          }
+        }
+      }
+    },
+    "Win a game with a smaller defense share than every opponent" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gewinne ein Spiel mit kleinerem Abwehranteil als jeder Gegner"
+          }
+        }
+      }
+    },
+    "Win a game within 8 minutes" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gewinne ein Spiel in höchstens 8 Minuten"
+          }
+        }
+      }
+    },
+    "Win a game without losing a life" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gewinne ein Spiel, ohne ein Leben zu verlieren"
+          }
+        }
+      }
+    },
+    "Win a multiplayer game" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gewinne ein Mehrspieler-Spiel"
           }
         }
       }
