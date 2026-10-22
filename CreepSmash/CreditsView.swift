@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Version of the app as shown to the player: 0.1.N, N counts the commits (set by build.sh commit).
+/// Version of the app as shown to the player (set by build.sh commit).
 enum AppVersion {
-    /// 0.M.P – M changes with every change that makes the app incompatible with the previous version,
+    /// 1.M.P – M changes with every change that makes the app incompatible with the previous version,
     /// P counts the changes within it.
     static var text: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1"
