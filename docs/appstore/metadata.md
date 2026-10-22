@@ -8,7 +8,7 @@ Character limits are Apple's; `tools/appstore/check.py` counts them.
 | Field | Value |
 |---|---|
 | Name | CreepSmash |
-| Bundle ID | de.wanner-it.creepsmash |
+| Bundle ID | de.wanner-it.creepsmash.game |
 | SKU | creepsmash-ios |
 | Primary language | English (U.S.) – German added as a second localization |
 | Primary category | Games › Strategy |

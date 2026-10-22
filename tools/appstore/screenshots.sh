@@ -5,7 +5,7 @@
 # Output: build/appstore/<language>/<device>/NN-<name>.png
 set -u
 APP=build/DerivedData/Build/Products/Debug-iphonesimulator/CreepSmash.app
-BUNDLE=de.wanner-it.creepsmash
+BUNDLE=de.wanner-it.creepsmash.game
 devices="${1:-iphone ipad}"; languages="${2:-en de}"; only="${*:3}"
 
 # Scenes: number, name, seconds to wait, launch arguments.

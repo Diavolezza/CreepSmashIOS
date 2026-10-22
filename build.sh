@@ -184,40 +184,40 @@ OSA
       done
       open "$simulator_app"
       if [[ "$extra" == *manual* ]]; then
-        xcrun simctl launch "$a" de.wanner-it.creepsmash
-        xcrun simctl launch "$b" de.wanner-it.creepsmash
+        xcrun simctl launch "$a" de.wanner-it.creepsmash.game
+        xcrun simctl launch "$b" de.wanner-it.creepsmash.game
         echo "✓ Both simulators show the menu – use \"Mehrspieler\" on both"
       else
         code=$(LC_ALL=C tr -dc 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' </dev/urandom | head -c5)
-        xcrun simctl launch "$a" de.wanner-it.creepsmash -host "$code"
+        xcrun simctl launch "$a" de.wanner-it.creepsmash.game -host "$code"
         sleep 3
         # The guest is called "Autopilot", so it is obvious which simulator is yours.
-        xcrun simctl launch "$b" de.wanner-it.creepsmash -join "$code" -autopilot -playerName Autopilot -musicEnabled NO
+        xcrun simctl launch "$b" de.wanner-it.creepsmash.game -join "$code" -autopilot -playerName Autopilot -musicEnabled NO
         echo "✓ Game $code: you play on \"$name_a\", the autopilot on \"$name_b\""
       fi
       echo "  Stop with: ./build.sh stop"
       return 0
     fi
     if [[ "$extra" == *quick* ]]; then
-      xcrun simctl launch "$a" de.wanner-it.creepsmash -quick -autopilot -musicEnabled NO
+      xcrun simctl launch "$a" de.wanner-it.creepsmash.game -quick -autopilot -musicEnabled NO
       sleep 2
-      xcrun simctl launch "$b" de.wanner-it.creepsmash -quick -autopilot -musicEnabled NO
+      xcrun simctl launch "$b" de.wanner-it.creepsmash.game -quick -autopilot -musicEnabled NO
     else
       code=$(LC_ALL=C tr -dc 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' </dev/urandom | head -c5)
       echo "▸ Code $code"
       # "duo solo": the host does nothing, only the guest plays (to check whose towers end up where).
       local host_auto="-autopilot"; [[ "$extra" == *solo* ]] && host_auto=""
-      xcrun simctl launch "$a" de.wanner-it.creepsmash -host "$code" $host_auto -musicEnabled NO
+      xcrun simctl launch "$a" de.wanner-it.creepsmash.game -host "$code" $host_auto -musicEnabled NO
       sleep 3
-      xcrun simctl launch "$b" de.wanner-it.creepsmash -join "$code" -autopilot -musicEnabled NO
+      xcrun simctl launch "$b" de.wanner-it.creepsmash.game -join "$code" -autopilot -musicEnabled NO
     fi
     sleep "${DUO_SECONDS:-45}"
     xcrun simctl io "$a" screenshot build/duo-host.png >/dev/null 2>&1 && echo "✓ screenshot: build/duo-host.png"
     xcrun simctl io "$b" screenshot build/duo-guest.png >/dev/null 2>&1 && echo "✓ screenshot: build/duo-guest.png"
     echo "▸ crash reports of the last 2 minutes:"
     find ~/Library/Logs/DiagnosticReports -mmin -2 -type f 2>/dev/null | sed 's|.*/||' | head
-    xcrun simctl terminate "$a" de.wanner-it.creepsmash >/dev/null 2>&1 || true
-    xcrun simctl terminate "$b" de.wanner-it.creepsmash >/dev/null 2>&1 || true
+    xcrun simctl terminate "$a" de.wanner-it.creepsmash.game >/dev/null 2>&1 || true
+    xcrun simctl terminate "$b" de.wanner-it.creepsmash.game >/dev/null 2>&1 || true
     xcrun simctl shutdown "$a" >/dev/null 2>&1 || true
     xcrun simctl shutdown "$b" >/dev/null 2>&1 || true
     echo "✓ duo finished, simulators shut down"
@@ -252,10 +252,10 @@ OSA
     code=$(LC_ALL=C tr -dc 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' </dev/urandom | head -c5)
     echo "▸ Code $code, $people people${cpu:+ and a computer}"
     if [ -n "$lobby" ]; then
-      xcrun simctl launch "${sims[0]}" de.wanner-it.creepsmash -host "$code" -multiplayer -playerName Anna -musicEnabled NO
+      xcrun simctl launch "${sims[0]}" de.wanner-it.creepsmash.game -host "$code" -multiplayer -playerName Anna -musicEnabled NO
       sleep 4
       for ((i = 1; i < people; i++)); do
-        xcrun simctl launch "${sims[$i]}" de.wanner-it.creepsmash -join "$code" -multiplayer -playerName "${names[$i]}" -musicEnabled NO
+        xcrun simctl launch "${sims[$i]}" de.wanner-it.creepsmash.game -join "$code" -multiplayer -playerName "${names[$i]}" -musicEnabled NO
         sleep 2
       done
       sleep "${QUAD_SECONDS:-12}"
@@ -263,10 +263,10 @@ OSA
       xcrun simctl io "${sims[1]}" screenshot build/quad-lobby-guest.png >/dev/null 2>&1 && echo "✓ screenshot: build/quad-lobby-guest.png"
     else
       # shellcheck disable=SC2086
-      xcrun simctl launch "${sims[0]}" de.wanner-it.creepsmash -host "$code" -startWhen "$people" $cpu $quit -autopilot -playerName Anna -musicEnabled NO
+      xcrun simctl launch "${sims[0]}" de.wanner-it.creepsmash.game -host "$code" -startWhen "$people" $cpu $quit -autopilot -playerName Anna -musicEnabled NO
       sleep 4
       for ((i = 1; i < people; i++)); do
-        xcrun simctl launch "${sims[$i]}" de.wanner-it.creepsmash -join "$code" -autopilot -playerName "${names[$i]}" -musicEnabled NO
+        xcrun simctl launch "${sims[$i]}" de.wanner-it.creepsmash.game -join "$code" -autopilot -playerName "${names[$i]}" -musicEnabled NO
         sleep 2
       done
       sleep "${QUAD_SECONDS:-45}"
@@ -277,7 +277,7 @@ OSA
     echo "▸ crash reports of the last 2 minutes:"
     find ~/Library/Logs/DiagnosticReports -mmin -2 -type f 2>/dev/null | sed 's|.*/||' | head
     for id in "${sims[@]}"; do
-      xcrun simctl terminate "$id" de.wanner-it.creepsmash >/dev/null 2>&1 || true
+      xcrun simctl terminate "$id" de.wanner-it.creepsmash.game >/dev/null 2>&1 || true
       xcrun simctl shutdown "$id" >/dev/null 2>&1 || true
     done
     echo "✓ quad finished, simulators shut down"
@@ -311,25 +311,25 @@ OSA
     done
     [ "$mode" = "run" ] && open "$simulator_app" --args -CurrentDeviceUDID "$device"
     xcrun simctl install "$device" "$APP"
-    xcrun simctl terminate "$device" de.wanner-it.creepsmash >/dev/null 2>&1 || true
+    xcrun simctl terminate "$device" de.wanner-it.creepsmash.game >/dev/null 2>&1 || true
     if [ "$mode" = "demo" ]; then
-      xcrun simctl launch "$device" de.wanner-it.creepsmash -demo -musicEnabled NO $extra
+      xcrun simctl launch "$device" de.wanner-it.creepsmash.game -demo -musicEnabled NO $extra
       sleep 20
       echo "▸ crash reports of the last 2 minutes:"
       find ~/Library/Logs/DiagnosticReports -mmin -2 -type f 2>/dev/null | sed 's|.*/||' | head
     elif [ "$mode" = "shot" ]; then
       # Screenshots and tests run without background music.
-      xcrun simctl launch "$device" de.wanner-it.creepsmash -musicEnabled NO $extra
+      xcrun simctl launch "$device" de.wanner-it.creepsmash.game -musicEnabled NO $extra
       sleep 6
     else
-      xcrun simctl launch "$device" de.wanner-it.creepsmash $extra
+      xcrun simctl launch "$device" de.wanner-it.creepsmash.game $extra
       sleep 4
     fi
     xcrun simctl io "$device" screenshot build/screenshot.png >/dev/null 2>&1 && echo "✓ screenshot: build/screenshot.png"
     if [ "$mode" = "demo" ] || [ "$mode" = "shot" ]; then
       # The demo game keeps playing itself with autopilot (with sound) – quit after the screenshot
       # and shut down the simulator so nothing keeps running in the background.
-      xcrun simctl terminate "$device" de.wanner-it.creepsmash >/dev/null 2>&1 || true
+      xcrun simctl terminate "$device" de.wanner-it.creepsmash.game >/dev/null 2>&1 || true
       xcrun simctl shutdown "$device" >/dev/null 2>&1 || true
       echo "✓ finished, simulator shut down"
       return 0
