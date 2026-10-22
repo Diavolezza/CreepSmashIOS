@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CSGameCenter</key>
-	<false/>
+	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSBonjourServices</key>

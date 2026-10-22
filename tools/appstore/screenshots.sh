@@ -12,7 +12,7 @@ devices="${1:-iphone ipad}"; languages="${2:-en de}"; only="${*:3}"
 scenes=(
   "01|menu|5|"
   "02|duel|9|-demo -opponents 1 -map rennbahn -botLevel normal"
-  "03|four-players|9|-demo -opponents 3 -map wurmloch -botLevel hard"
+  "03|four-players|9|-demo -opponents 3 -map wurmloch -botLevel easy"
   "04|tower|9|-demo -opponents 1 -map mahlstrom -selectTower"
   "05|setup|5|-setup -map stromschnellen -opponents 3"
   "06|multiplayer|5|-multiplayer -sampleRounds"
@@ -56,5 +56,13 @@ for kind in $devices; do
   xcrun simctl terminate "$sim" "$BUNDLE" >/dev/null 2>&1
   xcrun simctl status_bar "$sim" clear >/dev/null 2>&1
   xcrun simctl shutdown "$sim" >/dev/null 2>&1
+done
+# App Store Connect asks for the 6.1"/6.3" iPhone (2622 × 1206); the 6.9" shots are scaled down to it.
+for lang in $languages; do
+  [ -d "build/appstore/$lang/iphone" ] || continue
+  mkdir -p "build/appstore/$lang/iphone-6.3"
+  for f in build/appstore/$lang/iphone/*.png; do
+    sips -z 1206 2622 "$f" --out "build/appstore/$lang/iphone-6.3/$(basename "$f")" >/dev/null
+  done
 done
 echo "▸ sizes:"; for f in build/appstore/*/*/01-*.png; do echo "  $f $(sips -g pixelWidth -g pixelHeight "$f" | awk '/pixel/ {printf "%s ", $2}')"; done

@@ -84,8 +84,8 @@ boards = []
 for raw, en, de in levels:
     for n in (1, 2, 3):
         boards.append({"id": f"cs.fastest.{raw}.{n}",
-                       "title_en": f"Fastest wins · {en} · {n} opponent{'s' if n > 1 else ''}",
-                       "title_de": f"Schnellste Siege · {de} · {n} Gegner",
+                       "title_en": f"Fastest · {en} · {n} opponent{'s' if n > 1 else ''}",
+                       "title_de": f"Bestzeit · {de} · {n} Gegner",
                        "image": f"fastest-{raw}-{n}.png", "level": raw, "n": n})
 
 doc = [
@@ -125,6 +125,9 @@ doc = [
     "|---|---:|---|---|---|---|---|",
 ] + [f"| `{r['id']}` | {r['points']} | {r['title_en']} | {r['desc_en']} | {r['title_de']} | {r['desc_de']} | {r['image']} |"
      for r in rows]
+too_long = [t for x in boards + rows for k, t in x.items() if (k.startswith("title") and len(t) > 30) or (k.startswith("desc") and len(t) > 200)]
+if too_long:
+    sys.exit(f"** too long for Game Center (names 30, descriptions 200): {too_long}")
 (ROOT / "docs/appstore/game-center.md").write_text("\n".join(doc) + "\n")
 print(f"{len(boards)} leaderboards, {len(rows)} achievements, {total} points → docs/appstore/game-center.md")
 if total > 1000:
@@ -188,14 +191,21 @@ def circle(d, x, y, r, c, w):
 def pict(name):
     """Line pictograms, centered, about 520 px."""
     def f(d, c, w):
-        if name in ("wins", "winsHard", "onlineWins"):               # trophy
+        if name == "wins":                                             # trophy
             poly(d, [(-150, -190), (150, -190), (120, 0), (40, 60), (40, 150), (110, 190), (-110, 190), (-40, 150), (-40, 60), (-120, 0)], c, w)
             d.arc((C - 260, C - 190, C - 110, C - 30), 90, 270, fill=c, width=w)
             d.arc((C + 110, C - 190, C + 260, C - 30), 270, 90, fill=c, width=w)
-            if name == "winsHard":
-                poly(d, [(-60, -110), (60, -110), (0, -20)], c, w)
-            if name == "onlineWins":
-                circle(d, -40, -100, 30, c, w); circle(d, 50, -100, 30, c, w)
+        elif name == "winsHard":                                       # the computer: a chip with pins and a lightning
+            d.rounded_rectangle((C - 150, C - 150, C + 150, C + 150), radius=24, outline=c, width=w)
+            for k in (-90, 0, 90):
+                for a, b in (((k, -150), (k, -230)), ((k, 150), (k, 230)), ((-150, k), (-230, k)), ((150, k), (230, k))):
+                    poly(d, [a, b], c, w, closed=False)
+            poly(d, [(20, -95), (-60, 15), (5, 15), (-20, 95), (60, -15), (-5, -15)], c, w)
+        elif name == "onlineWins":                                     # two crossed swords
+            for sx in (1, -1):
+                poly(d, [(-200 * sx, -200), (150 * sx, 150)], c, w, closed=False)          # blade
+                poly(d, [(95 * sx, 185), (185 * sx, 95)], c, w, closed=False)              # cross guard
+                poly(d, [(150 * sx, 150), (215 * sx, 215)], c, w, closed=False)            # grip
         elif name in ("flawless", "closeCall"):                       # heart (cracked: close call)
             poly(d, [(0, 190), (-200, -10), (-200, -120), (-130, -190), (-50, -190), (0, -120), (50, -190), (130, -190), (200, -120), (200, -10)], c, w)
             if name == "closeCall":

@@ -173,6 +173,8 @@ Generated with `./build.sh script` and `tools/appstore/screenshots.sh` (iPhone l
 |---|---|---|
 | iPhone 6.9" | iPhone 18 Pro Max | 2868 × 1320 |
 | iPad 13" | iPad Pro 13-inch (M5) | 2064 × 2752 |
+| iPhone 6.1"/6.3" (what App Store Connect asks for) | scaled from the 6.9" shots | 2622 × 1206 |
 
-Apple scales them down for the smaller displays. Output: `build/appstore/<language>/<device>/NN-<name>.png`
+App Store Connect currently asks for the medium iPhone display: upload `iphone-6.3/`. Output:
+`build/appstore/<language>/<device>/NN-<name>.png`
 (not in git).

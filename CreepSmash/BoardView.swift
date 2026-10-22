@@ -28,6 +28,9 @@ struct BoardView: View {
                 .onEnded { value in
                     guard interactive, let cell = cell(at: value.location, size: geo.size) else { return }
                     controller.tapCell(cell)
+                    // The finger is lifted: no preview left behind on the cell just built on (it would
+                    // show the next tower kind chosen on that cell). The pointer sets it again on moving.
+                    controller.aimCell = nil
                 })
             // With a mouse or trackpad (Mac, iPad) the preview follows the pointer.
             .onContinuousHover { phase in
@@ -140,17 +143,21 @@ struct BoardRenderer {
             if case let .placing(kind) = controller.selection, let cell = controller.aimCell {
                 let r = cellRect(cell)
                 let stats = kind.stats(level: 1)
-                let free = map.isBuildable(cell) && board.tower(at: cell) == nil
-                    && !controller.pendingBuilds.contains { $0.cell == cell }
+                let occupied = board.tower(at: cell) != nil || controller.pendingBuilds.contains { $0.cell == cell }
+                let free = map.isBuildable(cell) && !occupied
                 let color = free && controller.hud.available >= stats.price ? Theme.green : Theme.warning
-                let radius = CGFloat(stats.range) * scale
-                let circle = Path(ellipseIn: CGRect(x: r.midX - radius, y: r.midY - radius, width: 2 * radius, height: 2 * radius))
-                ctx.fill(circle, with: .color(color.opacity(0.12)))
-                ctx.stroke(circle, with: .color(color.opacity(0.9)), lineWidth: 1)
-                var ghost = ctx
-                ghost.opacity = 0.75
-                plate(r, ghost)
-                ghost.draw(image(kind.imageName(level: 1), ctx, smooth: true), in: r)
+                // On a cell with a tower (or one being ordered) only the red frame: the preview would
+                // cover that tower and look as if it had changed its kind.
+                if !occupied {
+                    let radius = CGFloat(stats.range) * scale
+                    let circle = Path(ellipseIn: CGRect(x: r.midX - radius, y: r.midY - radius, width: 2 * radius, height: 2 * radius))
+                    ctx.fill(circle, with: .color(color.opacity(0.12)))
+                    ctx.stroke(circle, with: .color(color.opacity(0.9)), lineWidth: 1)
+                    var ghost = ctx
+                    ghost.opacity = 0.75
+                    plate(r, ghost)
+                    ghost.draw(image(kind.imageName(level: 1), ctx, smooth: true), in: r)
+                }
                 ctx.stroke(Path(r), with: .color(color), lineWidth: 1)
             }
             // Selected tower with its range

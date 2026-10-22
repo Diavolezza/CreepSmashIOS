@@ -518,7 +518,7 @@ struct GameScreen: View {
     /// New achievements and leaderboard place at the end of the game.
     @ViewBuilder private func outcomeView(_ outcome: PlayerRecord.Outcome) -> some View {
         if let place = outcome.leaderboardPlace, let board = leaderboardName {
-            Label(L("Place \(place) on the leaderboard (\(board))"), systemImage: "list.number")
+            Label(L("Place \(place) in your best times (\(board))"), systemImage: "list.number")
                 .font(Theme.mono(13)).foregroundStyle(Theme.gold)
                 .padding(.top, Theme.s(4))
         }

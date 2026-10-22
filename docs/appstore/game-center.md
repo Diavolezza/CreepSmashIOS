@@ -22,15 +22,15 @@ wins per difficulty and number of computer opponents).
 
 | ID | Title (en) | Title (de) | Image |
 |---|---|---|---|
-| `cs.fastest.easy.1` | Fastest wins · Easy · 1 opponent | Schnellste Siege · Leicht · 1 Gegner | fastest-easy-1.png |
-| `cs.fastest.easy.2` | Fastest wins · Easy · 2 opponents | Schnellste Siege · Leicht · 2 Gegner | fastest-easy-2.png |
-| `cs.fastest.easy.3` | Fastest wins · Easy · 3 opponents | Schnellste Siege · Leicht · 3 Gegner | fastest-easy-3.png |
-| `cs.fastest.normal.1` | Fastest wins · Normal · 1 opponent | Schnellste Siege · Normal · 1 Gegner | fastest-normal-1.png |
-| `cs.fastest.normal.2` | Fastest wins · Normal · 2 opponents | Schnellste Siege · Normal · 2 Gegner | fastest-normal-2.png |
-| `cs.fastest.normal.3` | Fastest wins · Normal · 3 opponents | Schnellste Siege · Normal · 3 Gegner | fastest-normal-3.png |
-| `cs.fastest.hard.1` | Fastest wins · Hard · 1 opponent | Schnellste Siege · Schwer · 1 Gegner | fastest-hard-1.png |
-| `cs.fastest.hard.2` | Fastest wins · Hard · 2 opponents | Schnellste Siege · Schwer · 2 Gegner | fastest-hard-2.png |
-| `cs.fastest.hard.3` | Fastest wins · Hard · 3 opponents | Schnellste Siege · Schwer · 3 Gegner | fastest-hard-3.png |
+| `cs.fastest.easy.1` | Fastest · Easy · 1 opponent | Bestzeit · Leicht · 1 Gegner | fastest-easy-1.png |
+| `cs.fastest.easy.2` | Fastest · Easy · 2 opponents | Bestzeit · Leicht · 2 Gegner | fastest-easy-2.png |
+| `cs.fastest.easy.3` | Fastest · Easy · 3 opponents | Bestzeit · Leicht · 3 Gegner | fastest-easy-3.png |
+| `cs.fastest.normal.1` | Fastest · Normal · 1 opponent | Bestzeit · Normal · 1 Gegner | fastest-normal-1.png |
+| `cs.fastest.normal.2` | Fastest · Normal · 2 opponents | Bestzeit · Normal · 2 Gegner | fastest-normal-2.png |
+| `cs.fastest.normal.3` | Fastest · Normal · 3 opponents | Bestzeit · Normal · 3 Gegner | fastest-normal-3.png |
+| `cs.fastest.hard.1` | Fastest · Hard · 1 opponent | Bestzeit · Schwer · 1 Gegner | fastest-hard-1.png |
+| `cs.fastest.hard.2` | Fastest · Hard · 2 opponents | Bestzeit · Schwer · 2 Gegner | fastest-hard-2.png |
+| `cs.fastest.hard.3` | Fastest · Hard · 3 opponents | Bestzeit · Schwer · 3 Gegner | fastest-hard-3.png |
 
 ## Achievements (39, 940 points of max. 1000)
 
@@ -68,13 +68,13 @@ description are the same (the requirement).
 | `cs.creepsSent.1` | 10 | Invader I | Send 100 creeps | Invasor I | Schicke 100 Creeps | creepsSent-1.png |
 | `cs.creepsSent.2` | 20 | Invader II | Send 1,000 creeps | Invasor II | Schicke 1.000 Creeps | creepsSent-2.png |
 | `cs.creepsSent.3` | 45 | Invader III | Send 10,000 creeps | Invasor III | Schicke 10.000 Creeps | creepsSent-3.png |
-| `cs.towersBuilt.1` | 10 | Master builder I | Build 50 towers | Baumeister I | Baue 50 Tower | towersBuilt-1.png |
-| `cs.towersBuilt.2` | 20 | Master builder II | Build 500 towers | Baumeister II | Baue 500 Tower | towersBuilt-2.png |
-| `cs.towersBuilt.3` | 45 | Master builder III | Build 5,000 towers | Baumeister III | Baue 5.000 Tower | towersBuilt-3.png |
+| `cs.towersBuilt.1` | 10 | Master builder I | Build 50 towers | Baumeister I | Baue 50 Türme | towersBuilt-1.png |
+| `cs.towersBuilt.2` | 20 | Master builder II | Build 500 towers | Baumeister II | Baue 500 Türme | towersBuilt-2.png |
+| `cs.towersBuilt.3` | 45 | Master builder III | Build 5,000 towers | Baumeister III | Baue 5.000 Türme | towersBuilt-3.png |
 | `cs.income.1` | 10 | Tycoon I | Reach an income of 1,000 | Großverdiener I | Erreiche ein Einkommen von 1.000 | income-1.png |
 | `cs.income.2` | 20 | Tycoon II | Reach an income of 10,000 | Großverdiener II | Erreiche ein Einkommen von 10.000 | income-2.png |
 | `cs.income.3` | 45 | Tycoon III | Reach an income of 100,000 | Großverdiener III | Erreiche ein Einkommen von 100.000 | income-3.png |
-| `cs.ultimate.1` | 25 | Ultimate | Build an Ultimate tower | Ultimativ | Baue einen Ultimate-Tower | ultimate-1.png |
+| `cs.ultimate.1` | 25 | Ultimate | Build an Ultimate tower | Ultimativ | Baue einen Ultimate-Turm | ultimate-1.png |
 | `cs.colossus.1` | 25 | Colossal | Send a Fat Colossus | Kolossal | Schicke einen Fat Colossus | colossus-1.png |
 | `cs.games.1` | 10 | Veteran I | Play 10 games | Veteran I | Spiele 10 Spiele | games-1.png |
 | `cs.games.2` | 20 | Veteran II | Play 100 games | Veteran II | Spiele 100 Spiele | games-2.png |

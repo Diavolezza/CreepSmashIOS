@@ -37,7 +37,7 @@ struct HallOfFameView: View {
                 .padding(.vertical, Theme.s(10))
             VStack(spacing: Theme.s(12)) {
                 Picker("", selection: $tab) {
-                    Text(L("Leaderboard")).tag(Tab.leaderboard)
+                    Text(L("Best times")).tag(Tab.leaderboard)
                     Text(L("Statistics")).tag(Tab.statistics)
                     Text(L("Achievements")).tag(Tab.achievements)
                 }

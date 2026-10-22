@@ -442,6 +442,16 @@
         }
       }
     },
+    "Best times" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bestzeiten"
+          }
+        }
+      }
+    },
     "Blue" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -478,7 +488,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Baue %@ Tower"
+            "value" : "Baue %@ Türme"
           }
         }
       }
@@ -488,7 +498,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Baue einen Ultimate-Tower"
+            "value" : "Baue einen Ultimate-Turm"
           }
         }
       }
@@ -498,7 +508,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Baue Tower neben den Pfad. Abgeschossene Creeps bringen Kopfgeld. Tower lassen sich aufrüsten und für 75 % ihres Preises verkaufen. Bauen und Aufrüsten dauert 2 Sekunden."
+            "value" : "Baue Türme neben den Pfad. Abgeschossene Creeps bringen Kopfgeld. Türme lassen sich aufrüsten und für 75 % ihres Preises verkaufen. Bauen und Aufrüsten dauert 2 Sekunden."
           }
         }
       }
@@ -1368,16 +1378,6 @@
         }
       }
     },
-    "Leaderboard" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bestenliste"
-          }
-        }
-      }
-    },
     "Lean" : {
       "localizations" : {
         "de" : {
@@ -1885,22 +1885,22 @@
         }
       }
     },
+    "Place %lld in your best times (%@)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Platz %lld deiner Bestzeiten (%@)"
+          }
+        }
+      }
+    },
     "Place %lld of %lld" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Platz %lld von %lld"
-          }
-        }
-      }
-    },
-    "Place %lld on the leaderboard (%@)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Platz %lld der Bestenliste (%@)"
           }
         }
       }
@@ -2579,7 +2579,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Der Tower ist gerade beschäftigt"
+            "value" : "Der Turm ist gerade beschäftigt"
           }
         }
       }
@@ -2589,7 +2589,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hier steht schon ein Tower"
+            "value" : "Hier steht schon ein Turm"
           }
         }
       }
@@ -2640,7 +2640,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tower nicht gefunden"
+            "value" : "Turm nicht gefunden"
           }
         }
       }
@@ -2660,7 +2660,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tower"
+            "value" : "Türme"
           }
         }
       }
@@ -2670,7 +2670,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tower gebaut"
+            "value" : "Türme gebaut"
           }
         }
       }
@@ -3168,7 +3168,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Links dein Feld, rechts das des Gegners. Tower links wählen und auf ein freies Feld tippen. Einen gebauten Tower antippen, um ihn aufzurüsten, zu verkaufen oder sein Ziel zu ändern. Einen Creep rechts antippen schickt einen; gedrückt halten schickt einen nach dem anderen, bis du loslässt oder die Credits ausgehen."
+            "value" : "Links dein Feld, rechts das des Gegners. Turm links wählen und auf ein freies Feld tippen. Einen gebauten Turm antippen, um ihn aufzurüsten, zu verkaufen oder sein Ziel zu ändern. Einen Creep rechts antippen schickt einen; gedrückt halten schickt einen nach dem anderen, bis du loslässt oder die Credits ausgehen."
           }
         }
       }
