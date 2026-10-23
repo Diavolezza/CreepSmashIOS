@@ -1,4 +1,5 @@
 import GameKit
+import SwiftUI
 import UIKit
 import CreepSmashCore
 
@@ -17,6 +18,13 @@ final class GameCenter: NSObject {
 
     /// Signed in to Game Center: online games, leaderboards and achievements are available.
     private(set) var isAuthenticated = false
+    /// The player's Game Center name while signed in; it is then the player's name everywhere in the app.
+    var playerName: String? {
+        isAuthenticated ? GKLocalPlayer.local.displayName : nil
+    }
+    /// Progress of every app achievement as Game Center knows it (all devices of the player), by app
+    /// achievement id; the records show the larger of this and the device's own value.
+    private(set) var achievementValues: [String: Int] = [:]
     /// Called with a found match (from the matchmaker screen or an accepted invitation).
     @ObservationIgnored var onMatch: ((GKMatch) -> Void)?
 
@@ -35,7 +43,10 @@ final class GameCenter: NSObject {
                 self.isAuthenticated = GKLocalPlayer.local.isAuthenticated
                 if self.isAuthenticated {
                     GKLocalPlayer.local.register(self)
-                    self.reportAchievements(ProgressStore.shared.record)
+                    let record = ProgressStore.shared.record
+                    self.submitBestTimes(record)
+                    self.reportAchievements(record)
+                    self.loadAchievementValues()
                 }
             }
         }
@@ -63,11 +74,90 @@ final class GameCenter: NSObject {
             case .online: nil
             }
             if let board {
-                GKLeaderboard.submitScore(summary.seconds, context: 0, player: GKLocalPlayer.local,
-                                          leaderboardIDs: [board]) { _ in }
+                GKLeaderboard.submitScore(summary.seconds, context: Self.context(mapID: summary.mapID, lives: summary.livesLeft),
+                                          player: GKLocalPlayer.local, leaderboardIDs: [board]) { _ in }
             }
         }
         reportAchievements(record)
+    }
+
+    /// The device's best times to Game Center (once signed in: also those from before Game Center).
+    /// Game Center keeps the best score per player, so sending them again does no harm.
+    func submitBestTimes(_ record: PlayerRecord) {
+        guard isAuthenticated else { return }
+        for level in Bot.Level.allCases {
+            for opponents in 1...3 {
+                guard let best = record.leaderboard[PlayerRecord.leaderboardKey(level, opponents: opponents)]?.first else { continue }
+                GKLeaderboard.submitScore(best.seconds, context: Self.context(mapID: best.mapID, lives: best.livesLeft),
+                                          player: GKLocalPlayer.local,
+                                          leaderboardIDs: [Self.leaderboardID(level, opponents: opponents)]) { _ in }
+            }
+        }
+    }
+
+    /// Map and lives left travel with a score as its context: 1 + map index × 100 + lives (0 = unknown).
+    static func context(mapID: String, lives: Int) -> Int {
+        guard let index = GameMap.all.firstIndex(where: { $0.id == mapID }) else { return 0 }
+        return 1 + index * 100 + max(0, min(99, lives))
+    }
+
+    static func mapAndLives(context: Int) -> (mapID: String, lives: Int)? {
+        guard context > 0 else { return nil }
+        let index = (context - 1) / 100
+        guard GameMap.all.indices.contains(index) else { return nil }
+        return (GameMap.all[index].id, (context - 1) % 100)
+    }
+
+    /// One page of a leaderboard as the records show it.
+    struct BoardPage {
+        struct Row: Identifiable {
+            let rank: Int
+            let entry: LeaderboardEntry
+            let isMe: Bool
+            var id: Int { rank }
+        }
+        var rows: [Row]
+        var mine: Row?
+        var total: Int
+    }
+
+    enum BoardScope: Hashable { case worldwide, friends }
+
+    /// The best ten of a leaderboard (worldwide or among friends) and the player's own place.
+    func loadBoard(level: Bot.Level, opponents: Int, scope: BoardScope) async -> BoardPage? {
+        guard isAuthenticated,
+              let board = try? await GKLeaderboard.loadLeaderboards(IDs: [Self.leaderboardID(level, opponents: opponents)]).first,
+              let (mine, entries, total) = try? await board.loadEntries(for: scope == .friends ? .friendsOnly : .global,
+                                                                       timeScope: .allTime, range: NSRange(location: 1, length: 10))
+        else { return nil }
+        let me = GKLocalPlayer.local.gamePlayerID
+        func row(_ e: GKLeaderboard.Entry) -> BoardPage.Row {
+            let extra = Self.mapAndLives(context: e.context)
+            return .init(rank: e.rank,
+                         entry: LeaderboardEntry(name: e.player.displayName, mapID: extra?.mapID ?? "",
+                                                 durationTicks: e.score * 1000 / Rules.standard.tickMilliseconds,
+                                                 livesLeft: extra?.lives ?? -1, date: e.date),
+                         isMe: e.player.gamePlayerID == me)
+        }
+        return BoardPage(rows: entries.map(row), mine: mine.map(row), total: total)
+    }
+
+    /// Reads the player's achievement progress from Game Center and turns it back into the app's values.
+    func loadAchievementValues() {
+        guard isAuthenticated else { return }
+        GKAchievement.loadAchievements { [weak self] loaded, _ in
+            let percent = Dictionary((loaded ?? []).map { ($0.identifier, $0.percentComplete) }, uniquingKeysWith: max)
+            Task { @MainActor in
+                var values: [String: Int] = [:]
+                for achievement in Achievement.all {
+                    for (index, threshold) in achievement.tiers.enumerated() {
+                        guard let p = percent[Self.achievementID(achievement.id, tier: index + 1)] else { continue }
+                        values[achievement.id] = max(values[achievement.id] ?? 0, Int((Double(threshold) * p / 100).rounded(.down)))
+                    }
+                }
+                self?.achievementValues = values
+            }
+        }
     }
 
     /// Reports the progress of every tier (Game Center keeps the highest value reported, so this can be repeated).
@@ -84,7 +174,9 @@ final class GameCenter: NSObject {
             }
         }
         guard !achievements.isEmpty else { return }
-        GKAchievement.report(achievements) { _ in }
+        GKAchievement.report(achievements) { [weak self] _ in
+            Task { @MainActor in self?.loadAchievementValues() }
+        }
     }
 
     /// Game Center's own screen with the leaderboards and achievements.
@@ -215,5 +307,38 @@ final class GameCenterSession: NSObject, GKMatchDelegate {
 
     nonisolated func match(_ match: GKMatch, didFailWithError error: Error?) {
         Task { @MainActor in self.onFailure?(L("Connection lost")) }
+    }
+}
+
+/// The player's name: the Game Center name while signed in, otherwise the one typed into the app.
+enum PlayerName {
+    @MainActor static func current(typed: String) -> String {
+        GameCenter.shared.playerName ?? typed.trimmingCharacters(in: .whitespaces)
+    }
+}
+
+/// Where the player's name is set: a text field, or – signed in to Game Center – that name, not editable.
+struct PlayerNameField: View {
+    @Binding var text: String
+    var width: CGFloat? = nil
+
+    var body: some View {
+        if let name = GameCenter.shared.playerName {
+            HStack(spacing: Theme.s(6)) {
+                Image(systemName: "gamecontroller.fill").foregroundStyle(Theme.green)
+                Text(verbatim: name).foregroundStyle(Theme.text).lineLimit(1)
+            }
+            .font(Theme.mono(14))
+            .frame(width: width, alignment: .leading)
+            .accessibilityLabel(L("Name from Game Center: \(name)"))
+        } else {
+            TextField(L("Your name"), text: $text)
+                .textFieldStyle(.roundedBorder)
+                .font(Theme.mono(14))
+                .frame(width: width)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+                .submitLabel(.done)
+        }
     }
 }

@@ -1112,12 +1112,32 @@
         }
       }
     },
+    "Friends" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Freunde"
+          }
+        }
+      }
+    },
     "Game Center" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Game Center"
+          }
+        }
+      }
+    },
+    "Game Center cannot be reached right now. Your best times on this device:" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Game Center ist gerade nicht erreichbar. Deine Bestzeiten auf diesem Gerät:"
           }
         }
       }
@@ -1613,6 +1633,16 @@
         }
       }
     },
+    "Name from Game Center: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name aus Game Center: %@"
+          }
+        }
+      }
+    },
     "Near" : {
       "localizations" : {
         "de" : {
@@ -1700,6 +1730,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kein Gegner mehr im Spiel"
+          }
+        }
+      }
+    },
+    "No times from your friends in Game Center yet." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Von deinen Freunden gibt es noch keine Zeiten in Game Center."
           }
         }
       }
@@ -2370,6 +2410,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Statistik"
+          }
+        }
+      }
+    },
+    "Statistics of the games on this device" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Statistik der Spiele auf diesem Gerät"
           }
         }
       }
@@ -3092,6 +3142,16 @@
         }
       }
     },
+    "Worldwide" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weltweit"
+          }
+        }
+      }
+    },
     "Wormhole" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3203,6 +3263,16 @@
         }
       }
     },
+    "Your name comes from Game Center." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Name kommt aus Game Center."
+          }
+        }
+      }
+    },
     "Your opponent has left the game" : {
       "localizations" : {
         "de" : {
@@ -3239,6 +3309,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Deine Pause hat länger als 2 Minuten gedauert – du bist ausgeschieden."
+          }
+        }
+      }
+    },
+    "Your place: %lld of %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Platz: %lld von %lld"
           }
         }
       }

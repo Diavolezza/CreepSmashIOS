@@ -223,13 +223,7 @@ struct SetupView: View {
         Grid(alignment: .leading, horizontalSpacing: Theme.s(10), verticalSpacing: Theme.s(8)) {
             GridRow {
                 Text(L("Name")).font(Theme.mono(13)).foregroundStyle(.gray).fixedSize()
-                TextField(L("Your name"), text: $playerName)
-                    .textFieldStyle(.roundedBorder)
-                    .font(Theme.mono(14))
-                    .frame(width: Theme.s(220))
-                    .textInputAutocapitalization(.words)
-                    .autocorrectionDisabled()
-                    .submitLabel(.done)
+                PlayerNameField(text: $playerName, width: Theme.s(220))
             }
             GridRow {
                 Text(L("Opponents")).font(Theme.mono(13)).foregroundStyle(.gray).fixedSize()

@@ -600,41 +600,44 @@ struct PlayerHeader: View {
         let name = isMe ? hud.myName : hud.opponentName
         let lives = isMe ? hud.lives : hud.opponentLives
         let income = isMe ? hud.income : hud.opponentIncome
-        // Full numbers if everything fits; otherwise shorter numbers (1,4k); only then is the name cut.
+        // Full numbers if everything fits; otherwise shorter numbers (1,4k), then less space between the
+        // values; only then is the name cut.
         ViewThatFits(in: .horizontal) {
             row(name: name, lives: lives, income: income, format: Format.credits, cutName: false)
             row(name: name, lives: lives, income: income, format: Format.compact, cutName: false)
-            row(name: name, lives: lives, income: income, format: Format.compact, cutName: true)
+            row(name: name, lives: lives, income: income, format: Format.compact, cutName: false, tight: true)
+            row(name: name, lives: lives, income: income, format: Format.compact, cutName: true, tight: true)
         }
         .font(Theme.mono(15, .semibold))
-        .padding(.horizontal, Theme.s(12))
+        .padding(.horizontal, Theme.s(10))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(RoundedRectangle(cornerRadius: Theme.s(6)).fill(Color.black))
         .overlay(RoundedRectangle(cornerRadius: Theme.s(6)).stroke(isMe ? Theme.dimGreen : Color.gray.opacity(0.35), lineWidth: Theme.s(1)))
     }
 
-    private func row(name: String, lives: Int, income: Int, format: (Int) -> String, cutName: Bool) -> some View {
-        HStack(spacing: Theme.s(12)) {
+    private func row(name: String, lives: Int, income: Int, format: (Int) -> String, cutName: Bool,
+                     tight: Bool = false) -> some View {
+        HStack(spacing: Theme.s(tight ? 6 : 12)) {
             Text(name)
                 .foregroundStyle(isMe ? Theme.green : Theme.text)
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .fixedSize(horizontal: !cutName, vertical: false)
-            Spacer(minLength: 4)
-            HStack(spacing: Theme.s(12)) {
-                stat("heart.fill", "\(lives)", lives <= 5 ? Theme.warning : Theme.text)
+            Spacer(minLength: tight ? 0 : 4)
+            HStack(spacing: Theme.s(tight ? 7 : 12)) {
+                stat("heart.fill", "\(lives)", lives <= 5 ? Theme.warning : Theme.text, tight: tight)
                 if isMe {
-                    stat("dollarsign.circle.fill", format(controller.hud.available), Theme.gold)
+                    stat("dollarsign.circle.fill", format(controller.hud.available), Theme.gold, tight: tight)
                 }
-                stat("arrow.up.right", "+" + format(income), Theme.text)
+                stat("arrow.up.right", "+" + format(income), Theme.text, tight: tight)
             }
             .lineLimit(1)
             .fixedSize()
         }
     }
 
-    private func stat(_ symbol: String, _ value: String, _ color: Color) -> some View {
-        HStack(spacing: Theme.s(4)) {
+    private func stat(_ symbol: String, _ value: String, _ color: Color, tight: Bool = false) -> some View {
+        HStack(spacing: Theme.s(tight ? 2 : 4)) {
             Image(systemName: symbol).imageScale(.small)
             Text(value).monospacedDigit()
         }

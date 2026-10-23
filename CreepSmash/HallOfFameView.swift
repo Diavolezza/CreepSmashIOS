@@ -10,6 +10,10 @@ struct HallOfFameView: View {
     /// Leaderboard for games against this many computers.
     @State private var opponents: Int
     @State private var showLastGame = false
+    /// Signed in to Game Center: worldwide or among friends, and what was loaded (nil: not yet or failed).
+    @State private var scope: GameCenter.BoardScope = .worldwide
+    @State private var page: GameCenter.BoardPage?
+    @State private var loading = false
     private var record: PlayerRecord { ProgressStore.shared.record }
 
     enum Tab: String, CaseIterable { case leaderboard, statistics, achievements }
@@ -77,22 +81,85 @@ struct HallOfFameView: View {
             }
             .pickerStyle(.segmented)
             .frame(maxWidth: Theme.s(360))
-            let entries = record.leaderboard[PlayerRecord.leaderboardKey(level, opponents: opponents)] ?? []
-            if entries.isEmpty {
-                Text(opponents == 1 ? L("No wins against \(level.label) yet. The fastest wins appear here.")
-                     : L("No wins against \(level.label) with \(opponents) opponents yet. The fastest wins appear here."))
-                    .font(Theme.mono(14)).foregroundStyle(.gray)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, Theme.s(30))
-            } else {
-                LazyVGrid(columns: cardColumns, spacing: Theme.s(12)) {
-                    ForEach(Array(entries.enumerated()), id: \.offset) { index, entry in
-                        LeaderboardCard(place: index + 1, entry: entry)
-                    }
+            // Signed in to Game Center: its leaderboard (all the player's devices, everyone or friends);
+            // otherwise, or when Game Center cannot be reached, the best times of this device.
+            if GameCenter.shared.isAuthenticated {
+                Picker("", selection: $scope) {
+                    Text(L("Worldwide")).tag(GameCenter.BoardScope.worldwide)
+                    Text(L("Friends")).tag(GameCenter.BoardScope.friends)
                 }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: Theme.s(360))
+                if loading && page == nil {
+                    ProgressView().tint(Theme.green).padding(.top, Theme.s(30))
+                } else if let page {
+                    gameCenterBoard(page)
+                } else {
+                    Text(L("Game Center cannot be reached right now. Your best times on this device:"))
+                        .font(Theme.mono(14)).foregroundStyle(.gray)
+                        .multilineTextAlignment(.center)
+                    localBoard
+                }
+            } else {
+                localBoard
             }
         }
         .frame(maxWidth: .infinity)
+        .task(id: BoardKey(level: level, opponents: opponents, scope: scope, signedIn: GameCenter.shared.isAuthenticated)) {
+            guard GameCenter.shared.isAuthenticated else { page = nil; return }
+            loading = true
+            page = await GameCenter.shared.loadBoard(level: level, opponents: opponents, scope: scope)
+            loading = false
+        }
+    }
+
+    private struct BoardKey: Equatable {
+        let level: Bot.Level, opponents: Int, scope: GameCenter.BoardScope, signedIn: Bool
+    }
+
+    private var noWinsText: String {
+        opponents == 1 ? L("No wins against \(level.label) yet. The fastest wins appear here.")
+            : L("No wins against \(level.label) with \(opponents) opponents yet. The fastest wins appear here.")
+    }
+
+    /// The best times of this device (without Game Center).
+    @ViewBuilder private var localBoard: some View {
+        let entries = record.leaderboard[PlayerRecord.leaderboardKey(level, opponents: opponents)] ?? []
+        if entries.isEmpty {
+            Text(noWinsText)
+                .font(Theme.mono(14)).foregroundStyle(.gray)
+                .multilineTextAlignment(.center)
+                .padding(.top, Theme.s(30))
+        } else {
+            LazyVGrid(columns: cardColumns, spacing: Theme.s(12)) {
+                ForEach(Array(entries.enumerated()), id: \.offset) { index, entry in
+                    LeaderboardCard(place: index + 1, entry: entry)
+                }
+            }
+        }
+    }
+
+    /// Game Center's best ten and, below them unless among them, the player's own place.
+    @ViewBuilder private func gameCenterBoard(_ page: GameCenter.BoardPage) -> some View {
+        if page.rows.isEmpty {
+            Text(scope == .friends ? L("No times from your friends in Game Center yet.") : noWinsText)
+                .font(Theme.mono(14)).foregroundStyle(.gray)
+                .multilineTextAlignment(.center)
+                .padding(.top, Theme.s(30))
+        } else {
+            if let mine = page.mine {
+                Text(L("Your place: \(mine.rank) of \(page.total)"))
+                    .font(Theme.mono(14)).foregroundStyle(Theme.gold)
+            }
+            LazyVGrid(columns: cardColumns, spacing: Theme.s(12)) {
+                ForEach(page.rows) { row in
+                    LeaderboardCard(place: row.rank, entry: row.entry, isMe: row.isMe)
+                }
+                if let mine = page.mine, !page.rows.contains(where: { $0.isMe }) {
+                    LeaderboardCard(place: mine.rank, entry: mine.entry, isMe: true)
+                }
+            }
+        }
     }
 
     /// Cards side by side where there is room (iPad), otherwise below each other.
@@ -128,6 +195,7 @@ struct HallOfFameView: View {
             StatCard(symbol: "clock.fill", title: L("Time played"), line: Self.hours(r.totalTicks / 20)),
         ]
         return VStack(spacing: Theme.s(12)) {
+            Text(L("Statistics of the games on this device")).font(Theme.mono(14)).foregroundStyle(.gray)
             if r.lastGame != nil {
                 Button { withoutSliding { showLastGame = true } } label: {
                     Label(L("Evaluate the last game"), systemImage: "chart.xyaxis.line")
@@ -146,14 +214,19 @@ struct HallOfFameView: View {
 
     // MARK: - Achievements
 
+    /// Progress of an achievement: the larger of this device's and Game Center's (all the player's devices).
+    private func value(_ achievement: Achievement) -> Int {
+        max(achievement.progress(in: record), GameCenter.shared.achievementValues[achievement.id] ?? 0)
+    }
+
     private var achievements: some View {
-        let done = Achievement.all.reduce(0) { $0 + $1.tier(in: record) }
+        let done = Achievement.all.reduce(0) { $0 + $1.tier(value: value($1)) }
         let total = Achievement.all.reduce(0) { $0 + $1.tiers.count }
         return VStack(alignment: .leading, spacing: Theme.s(10)) {
             Text(L("\(done) of \(total) achieved")).font(Theme.mono(14)).foregroundStyle(.gray)
             LazyVGrid(columns: cardColumns, spacing: Theme.s(12)) {
                 ForEach(Achievement.all, id: \.id) { achievement in
-                    AchievementCard(achievement: achievement, record: record)
+                    AchievementCard(achievement: achievement, value: value(achievement))
                 }
             }
         }
@@ -186,6 +259,8 @@ private struct CardFrame: ViewModifier {
 private struct LeaderboardCard: View {
     let place: Int
     let entry: LeaderboardEntry
+    /// The player's own entry in a Game Center list: framed in gold.
+    var isMe = false
 
     var body: some View {
         let medal: Color = switch place {
@@ -207,11 +282,16 @@ private struct LeaderboardCard: View {
                     Text(HallOfFameView.minutes(entry.seconds)).font(Theme.pixel(12)).foregroundStyle(Theme.text)
                 }
                 HStack(spacing: Theme.s(10)) {
-                    HStack(spacing: Theme.s(4)) {
-                        Image(systemName: "heart.fill").foregroundStyle(Color.red.opacity(0.8))
-                        Text("\(entry.livesLeft)")
+                    // Game Center entries from other apps' versions may lack lives and map.
+                    if entry.livesLeft >= 0 {
+                        HStack(spacing: Theme.s(4)) {
+                            Image(systemName: "heart.fill").foregroundStyle(Color.red.opacity(0.8))
+                            Text("\(entry.livesLeft)")
+                        }
                     }
-                    Text(L(key: GameMap.named(entry.mapID)?.name ?? entry.mapID))
+                    if let map = GameMap.named(entry.mapID) {
+                        Text(L(key: map.name))
+                    }
                     Spacer(minLength: 0)
                     Text(entry.date.formatted(Date.FormatStyle(date: .numeric, time: .omitted)
                         .locale(AppLanguage.current.locale)))
@@ -220,6 +300,7 @@ private struct LeaderboardCard: View {
             }
         }
         .modifier(CardFrame())
+        .overlay(RoundedRectangle(cornerRadius: Theme.s(8)).stroke(Theme.gold, lineWidth: Theme.s(2)).opacity(isMe ? 1 : 0))
     }
 }
 
@@ -255,12 +336,11 @@ private struct StatCard: View {
 /// One achievement: symbol, title, a medal per tier and the progress towards the next tier.
 private struct AchievementCard: View {
     let achievement: Achievement
-    let record: PlayerRecord
+    let value: Int
 
     var body: some View {
-        let tier = achievement.tier(in: record)
-        let next = achievement.nextThreshold(in: record)
-        let value = achievement.progress(in: record)
+        let tier = achievement.tier(value: value)
+        let next = achievement.nextThreshold(value: value)
         HStack(alignment: .top, spacing: Theme.s(12)) {
             Image(systemName: achievement.symbol)
                 .font(.system(size: Theme.s(22)))

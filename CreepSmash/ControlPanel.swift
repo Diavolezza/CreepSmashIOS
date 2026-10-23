@@ -312,20 +312,13 @@ struct TowerDetail: View {
             }
             // Target strategy: one option out of five, like radio buttons; the lock holds the target
             // until it leaves the range.
+            // In a narrow panel all five labels get a smaller font together (never just the one that
+            // does not fit), so the row keeps one font size.
             let chosen = controller.chosenStrategy(of: tower)
-            HStack(spacing: Theme.s(3)) {
-                ForEach(TargetStrategy.allCases, id: \.self) { strategy in
-                    Button(strategy.shortLabel) { controller.setStrategy(strategy, locked: chosen.locked) }
-                        .buttonStyle(ChipStyle(on: chosen.strategy == strategy))
-                        .accessibilityLabel(L("Target: \(strategy.label)"))
-                }
-                Button {
-                    controller.setStrategy(chosen.strategy, locked: !chosen.locked)
-                } label: {
-                    Image(systemName: chosen.locked ? "lock.fill" : "lock.open")
-                }
-                .buttonStyle(ChipStyle(on: chosen.locked, width: Theme.s(26)))
-                .accessibilityLabel(chosen.locked ? L("Stop holding target") : L("Hold target"))
+            ViewThatFits(in: .horizontal) {
+                StrategyRow(controller: controller, chosen: chosen, size: 10)
+                StrategyRow(controller: controller, chosen: chosen, size: 9)
+                StrategyRow(controller: controller, chosen: chosen, size: 8)
             }
             .disabled(busy)
             HStack(spacing: Theme.s(6)) {
@@ -367,15 +360,50 @@ struct TowerDetail: View {
 }
 
 /// One option of a choice in the tower panel: green and filled when chosen.
+/// The row of target strategies in the tower panel, with the lock at the end.
+private struct StrategyRow: View {
+    let controller: GameController
+    let chosen: (strategy: TargetStrategy, locked: Bool)
+    let size: CGFloat
+
+    var body: some View {
+        HStack(spacing: Theme.s(3)) {
+            ForEach(TargetStrategy.allCases, id: \.self) { strategy in
+                Button {
+                    controller.setStrategy(strategy, locked: chosen.locked)
+                } label: {
+                    // All labels stacked (only one visible): every chip asks for the width of the
+                    // longest label, so the row only fits when all of them fit.
+                    ZStack {
+                        ForEach(TargetStrategy.allCases, id: \.self) { Text($0.shortLabel).hidden() }
+                        Text(strategy.shortLabel)
+                    }
+                }
+                .buttonStyle(ChipStyle(on: chosen.strategy == strategy, size: size))
+                    .accessibilityLabel(L("Target: \(strategy.label)"))
+            }
+            Button {
+                controller.setStrategy(chosen.strategy, locked: !chosen.locked)
+            } label: {
+                Image(systemName: chosen.locked ? "lock.fill" : "lock.open")
+            }
+            .buttonStyle(ChipStyle(on: chosen.locked, width: Theme.s(26)))
+            .accessibilityLabel(chosen.locked ? L("Stop holding target") : L("Hold target"))
+        }
+    }
+}
+
 struct ChipStyle: ButtonStyle {
     var on: Bool
     /// Fixed width instead of an equal share of the row (the lock).
     var width: CGFloat?
+    /// Font size (on the scale of `Theme.mono`); smaller in a narrow panel.
+    var size: CGFloat = 10
     @Environment(\.isEnabled) private var enabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(Theme.mono(10, .bold))
+            .font(Theme.mono(size, .bold))
             .foregroundStyle(on ? Color.black : (enabled ? Theme.text : .gray))
             .lineLimit(1)
             .padding(.vertical, Theme.s(6))

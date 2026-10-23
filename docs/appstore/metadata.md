@@ -158,22 +158,39 @@ Keine Werbung, keine In-App-Käufe, kein Tracking. Auf Deutsch und Englisch.
 ## Notes for App Review
 
 ```
-CreepSmash needs no account and no server.
+1. Screen recording
+A screen recording on an iPhone with the latest iOS was attached to the reply for version 1.0 (Guideline 2.1). It starts with launching the app and shows the typical flow: a game against the computer (building and upgrading towers, sending creeps, pausing), the result and the evaluation after the game, the records with best times, statistics and achievements, the options and the multiplayer page. The app has no account registration, no login of its own, no user-generated content and no paid content.
 
-Single player: tap "Vs. computer", choose a map, the number of opponents (1 to 3 computers) and the difficulty, then "Start game".
+2. Purpose and target audience
+CreepSmash is a free strategy game (tower defense) for two to four players, for everyone who likes short strategic matches, from about 9 years. Each player defends a board with towers and sends "creeps" to the next player; every creep sent raises the player's income, so each decision weighs defense against growth. It can be played alone against one to three computer opponents or with friends on devices nearby. It is a new version of a game that ten computer science students at HFT Stuttgart (University of Applied Sciences) wrote in 2008 under my supervision. After each game an evaluation shows how well and how economically the player defended (with terms from Green IT), which also makes the game useful in teaching.
 
-Multiplayer works only on the local network (Bonjour, peer-to-peer Wi-Fi) and needs a second device with the same app version: on one device "Multiplayer" > "Open a round" > "Open", on the other "Multiplayer" > the round in the list > "Join" (or "Join with a code" and the code shown on the first device); the first device then taps "Start". "Quick game for two" pairs two devices that both tap it. The app asks for permission to use the local network the first time "Multiplayer" is opened.
+3. Setup and main features
+No account, login or sample files are needed. After launching:
+- "Vs. computer": choose a map, 1 to 3 computer opponents and the difficulty, then "Start game". Tap a tower on the left and a free cell to build; tap a built tower to upgrade, sell or change its target; tap a creep on the right to send it. The pause button pauses; a game against the computer can be continued later.
+- Trophy button (top left): records with best times (worldwide and friends from Game Center when the player is signed in, otherwise the records on the device), statistics and achievements; "Evaluate the last game" shows the evaluation.
+- "?" button: how to play; "i" button: credits; gear: options (sound, music, and the name when not signed in to Game Center); flag: language (English or German).
+- "Multiplayer": games for 2 to 4 people on the local network (needs a second device with the app): one device taps "Open a round" > "Open", the other selects the round in the list > "Join", then the first taps "Start". "Quick game for two" pairs two devices that both tap it. The app asks for permission to use the local network the first time.
+
+4. External services
+Only Apple's Game Center, for leaderboards and achievements; it is optional and the app works fully without signing in. The app uses no server of its own, no data provider, no other authentication service, no payment processor, no analytics, no advertising and no AI service. Multiplayer games connect the devices directly on the local network (Bonjour and peer-to-peer Wi-Fi through Apple's Network framework). Records, settings and a saved game stay on the device.
+
+5. Regional differences
+None. The app works the same in all regions. The interface is in English or German, following the device language, and can be switched in the app.
+
+6. Regulated industry and third-party material
+The app does not operate in a regulated industry and contains no protected third-party material. All graphics, sound effects, music and maps were made for this app; the two fonts (Press Start 2P and VT323) are used under the SIL Open Font License. The game idea comes from the 2008 student project at HFT Stuttgart that I supervised; this version is a complete new implementation.
 ```
 
 ## Screenshots
 
-Generated with `./build.sh script` and `tools/appstore/screenshots.sh` (iPhone landscape, iPad portrait, both languages):
+Generated with `./build.sh script` and `tools/appstore/screenshots.sh` (iPhone and iPhone Duo landscape, iPad portrait, both languages):
 
 | Display | Simulator | Size (px) |
 |---|---|---|
 | iPhone 6.9" | iPhone 18 Pro Max | 2868 × 1320 |
 | iPad 13" | iPad Pro 13-inch (M5) | 2064 × 2752 |
 | iPhone 6.1"/6.3" (what App Store Connect asks for) | scaled from the 6.9" shots | 2622 × 1206 |
+| iPhone Duo, inner display (optional until 2027) | iPhone Duo (iOS 27.1), unfolded in the Device Hub of Xcode | 2853 × 2007 |
 
 App Store Connect currently asks for the medium iPhone display: upload `iphone-6.3/`. Output:
 `build/appstore/<language>/<device>/NN-<name>.png`

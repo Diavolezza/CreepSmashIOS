@@ -126,6 +126,20 @@ if not detail:
 existing_boards = {x["attributes"]["vendorIdentifier"]: x for x in all_pages(f"/v1/gameCenterDetails/{detail['id']}/gameCenterLeaderboards?limit=200")} if detail else {}
 existing_achievements = {x["attributes"]["vendorIdentifier"]: x for x in all_pages(f"/v1/gameCenterDetails/{detail['id']}/gameCenterAchievements?limit=200")} if detail else {}
 print(f"  leaderboards: {len(existing_boards)} of {len(boards)} exist; achievements: {len(existing_achievements)} of {len(achievements)} exist")
+if "--status" in sys.argv and detail:
+    # One leaderboard and one achievement in full, with the state of an image and the v2 view (versions).
+    print(json.dumps(call("GET", f"/v1/gameCenterDetails/{detail['id']}"), indent=1)[:1500])
+    for kind, items in (("gameCenterLeaderboard", existing_boards), ("gameCenterAchievement", existing_achievements)):
+        first = next(iter(items.values()))
+        print(f"== {kind} {first['attributes']['vendorIdentifier']}")
+        print(json.dumps(first["attributes"], indent=1))
+        locs = all_pages(f"/v1/{kind}s/{first['id']}/localizations")
+        for loc in locs:
+            img = call("GET", f"/v1/{kind}Localizations/{loc['id']}/{kind}Image").get("data") or {}
+            print(loc["attributes"].get("locale"), "image:", (img.get("attributes") or {}).get("assetDeliveryState"))
+        v2 = call("GET", f"/v2/{kind}s/{first['id']}?include=versions")
+        print(json.dumps(v2, indent=1)[:2500])
+    sys.exit(0)
 if not apply:
     sys.exit(0)
 

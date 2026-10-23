@@ -339,6 +339,14 @@ public struct LeaderboardEntry: Codable, Equatable, Sendable {
 
     public var seconds: Int { durationTicks * Rules.standard.tickMilliseconds / 1000 }
 
+    public init(name: String, mapID: String, durationTicks: Int, livesLeft: Int, date: Date) {
+        self.name = name
+        self.mapID = mapID
+        self.durationTicks = durationTicks
+        self.livesLeft = livesLeft
+        self.date = date
+    }
+
     /// Faster wins first; with the same time, more lives left first.
     static func ranked(_ a: LeaderboardEntry, _ b: LeaderboardEntry) -> Bool {
         a.durationTicks != b.durationTicks ? a.durationTicks < b.durationTicks : a.livesLeft > b.livesLeft
@@ -502,8 +510,17 @@ public struct Achievement: Sendable {
 
     /// Number of tiers reached (0 = none yet).
     public func tier(in record: PlayerRecord) -> Int {
-        let v = value(record)
-        return tiers.filter { v >= $0 }.count
+        tier(value: value(record))
+    }
+
+    /// Number of tiers reached with this value (e.g. the larger of the device's and Game Center's).
+    public func tier(value v: Int) -> Int {
+        tiers.filter { v >= $0 }.count
+    }
+
+    /// Threshold of the next tier for this value, or nil when all tiers are reached.
+    public func nextThreshold(value v: Int) -> Int? {
+        tiers.first { v < $0 }
     }
 
     public func progress(in record: PlayerRecord) -> Int { value(record) }

@@ -288,9 +288,15 @@ struct OptionsView: View {
                 .padding(.vertical, Theme.s(10))
             Form {
                 Section(L("Player")) {
-                    TextField(L("Your name"), text: $playerName)
-                        .textInputAutocapitalization(.words)
-                        .autocorrectionDisabled()
+                    if let name = GameCenter.shared.playerName {
+                        Label(name, systemImage: "gamecontroller.fill")
+                        Text(L("Your name comes from Game Center."))
+                            .font(.footnote).foregroundStyle(.secondary)
+                    } else {
+                        TextField(L("Your name"), text: $playerName)
+                            .textInputAutocapitalization(.words)
+                            .autocorrectionDisabled()
+                    }
                 }
                 Section(L("Sound")) {
                     Toggle(L("Sounds"), isOn: $enabled)

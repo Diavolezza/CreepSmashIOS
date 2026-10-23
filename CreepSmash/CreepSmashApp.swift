@@ -6,26 +6,40 @@ import CreepSmashCore
 struct CreepSmashApp: App {
     init() {
         // Retro fonts also in the system bars and controls (navigation bar of the sheets, segmented picker).
+        // Sheet titles at least as large as the text below them: large on the iPad, and on an iPhone with a
+        // large display that is regular in both directions (inner display of the iPhone Duo).
+        let iPad = UIDevice.current.userInterfaceIdiom == .pad
+        Self.styleBars(UINavigationBar.appearance(), UISegmentedControl.appearance(), large: iPad)
+        if !iPad {
+            let regular = UITraitCollection { traits in
+                traits.horizontalSizeClass = .regular
+                traits.verticalSizeClass = .regular
+            }
+            Self.styleBars(UINavigationBar.appearance(for: regular), UISegmentedControl.appearance(for: regular),
+                           large: true)
+        }
+        SoundManager.shared.prepareSession()
+        MapThumbnails.preload()
+    }
+
+    /// Navigation bar and segmented control in the retro fonts, in the small (iPhone) or large (iPad) size.
+    private static func styleBars(_ navigation: UINavigationBar, _ segmented: UISegmentedControl, large: Bool) {
         let bar = UINavigationBarAppearance()
         bar.configureWithOpaqueBackground()
         bar.backgroundColor = .black
-        // Sheet titles at least as large as the text below them; on the iPad everything is scaled up.
-        let iPad = UIDevice.current.userInterfaceIdiom == .pad
-        if let pixel = UIFont(name: "PressStart2P-Regular", size: iPad ? 22 : 15) {
+        if let pixel = UIFont(name: "PressStart2P-Regular", size: large ? 22 : 15) {
             bar.titleTextAttributes = [.font: pixel, .foregroundColor: UIColor(Theme.green)]
         }
-        if let mono = UIFont(name: "VT323-Regular", size: iPad ? 30 : 22) {
+        if let mono = UIFont(name: "VT323-Regular", size: large ? 30 : 22) {
             let item = UIBarButtonItemAppearance()
             item.normal.titleTextAttributes = [.font: mono]
             bar.buttonAppearance = item
             bar.doneButtonAppearance = item
-            UISegmentedControl.appearance().setTitleTextAttributes([.font: mono], for: .normal)
+            segmented.setTitleTextAttributes([.font: mono], for: .normal)
         }
-        UINavigationBar.appearance().standardAppearance = bar
-        UINavigationBar.appearance().scrollEdgeAppearance = bar
-        UINavigationBar.appearance().compactAppearance = bar
-        SoundManager.shared.prepareSession()
-        MapThumbnails.preload()
+        navigation.standardAppearance = bar
+        navigation.scrollEdgeAppearance = bar
+        navigation.compactAppearance = bar
     }
 
     var body: some Scene {
@@ -104,12 +118,13 @@ struct RootView: View {
     }
 
     private var displayName: String {
-        let name = playerName.trimmingCharacters(in: .whitespaces)
+        let name = PlayerName.current(typed: playerName)
         return name.isEmpty ? L("You") : name
     }
 
-    /// Name sent to the other device; empty without a name, it then shows "Opponent".
-    private var networkName: String { playerName.trimmingCharacters(in: .whitespaces) }
+    /// Name sent to the other device (the Game Center name when signed in); empty without a name, it then
+    /// shows "Opponent".
+    private var networkName: String { PlayerName.current(typed: playerName) }
 
     /// Continues the saved game: replays it in the background (a few seconds for a long game), then shows it paused.
     private func resumeGame() {

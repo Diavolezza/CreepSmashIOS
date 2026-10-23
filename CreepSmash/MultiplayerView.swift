@@ -14,7 +14,7 @@ struct MultiplayerView: View {
     @FocusState private var codeFocused: Bool
 
     /// Without a name an empty one is sent; the other devices then show "Opponent" or "Player n".
-    private var name: String { playerName.trimmingCharacters(in: .whitespaces) }
+    private var name: String { PlayerName.current(typed: playerName) }
 
     var body: some View {
         ZStack {
@@ -23,13 +23,7 @@ struct MultiplayerView: View {
                 PageHeader(L("Multiplayer"), onBack: onCancel) {
                     HStack(spacing: Theme.s(8)) {
                         Text(L("Name")).font(Theme.mono(13)).foregroundStyle(.gray)
-                        TextField(L("Your name"), text: $playerName)
-                            .textFieldStyle(.roundedBorder)
-                            .font(Theme.mono(14))
-                            .frame(width: Theme.s(150))
-                            .textInputAutocapitalization(.words)
-                            .autocorrectionDisabled()
-                            .submitLabel(.done)
+                        PlayerNameField(text: $playerName, width: Theme.s(150))
                     }
                 }
                 // Landscape: the three ways side by side. Portrait (iPad): quick game and opening side by side,
