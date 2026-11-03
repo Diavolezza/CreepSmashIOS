@@ -74,9 +74,10 @@ public final class Game {
 
     // MARK: - Commands
 
+    /// Commands can come from other devices and from a saved file: one for a tick already computed or for
+    /// a player who does not exist is ignored, never a reason to stop the app.
     public func schedule(_ command: ScheduledCommand) {
-        precondition(command.tick >= tick, "command for tick \(command.tick) arrives after tick \(tick)")
-        precondition(players.indices.contains(command.player), "unknown player")
+        guard command.tick >= tick, players.indices.contains(command.player) else { return }
         scheduled[command.tick, default: []].append(command)
     }
 

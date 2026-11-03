@@ -27,7 +27,11 @@ public struct SavedGame: Codable, Equatable, Sendable {
     public internal(set) var date = Date()
 
     /// The game can be continued with this version of the app.
-    public var canContinue: Bool { version == NetMessage.protocolVersion && GameMap.named(mapID) != nil }
+    /// (The file could be damaged: its rules and opponents are checked too.)
+    public var canContinue: Bool {
+        version == NetMessage.protocolVersion && GameMap.named(mapID) != nil && rules.isPlausible
+            && (1...3).contains(opponents.count) && (opponentNames.map { $0.count == opponents.count } ?? true)
+    }
 }
 
 extension LocalMatch {

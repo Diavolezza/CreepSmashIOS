@@ -63,8 +63,13 @@ final class StreamTransport: Transport {
         }
     }
 
+    /// Largest message accepted (the biggest real one, the packets of a handover, has a few kilobytes);
+    /// a larger length is a broken or foreign sender: the connection is dropped.
+    private static let maxMessageLength = 1_000_000
+
     private func receiveBody(_ length: Int) {
         guard length > 0 else { return receiveHeader() }
+        guard length <= Self.maxMessageLength else { return lost() }
         connection.receive(minimumIncompleteLength: length, maximumLength: length) { [weak self] data, _, _, _ in
             guard let self, !self.closed else { return }
             guard let data, data.count == length else { return self.lost() }
@@ -203,7 +208,7 @@ final class NearbyFinder {
             var info: [String: String] = [:]
             if case let .bonjour(record) = result.metadata { info = record.dictionary }
             let seats = info["s"]?.split(separator: "/").compactMap { Int($0) } ?? []
-            games.append(OpenGame(code: parts.rest, hostName: info["n"] ?? "", mapID: info["m"] ?? "",
+            games.append(OpenGame(code: parts.rest, hostName: MatchSetup.cleanName(info["n"] ?? ""), mapID: info["m"] ?? "",
                                   taken: seats.first ?? 1, seats: seats.count == 2 ? seats[1] : 4, version: parts.version))
         }
         onGames?(games.sorted { ($0.hostName, $0.code) < ($1.hostName, $1.code) })

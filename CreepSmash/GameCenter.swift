@@ -25,6 +25,13 @@ final class GameCenter: NSObject {
     /// Progress of every app achievement as Game Center knows it (all devices of the player), by app
     /// achievement id; the records show the larger of this and the device's own value.
     private(set) var achievementValues: [String: Int] = [:]
+    /// A game against the computer asked for from outside (an activity in the Games app or a challenge):
+    /// the menu opens the setup page with it and then sets it back to nil.
+    var requestedSetup: RequestedSetup?
+    struct RequestedSetup: Equatable {
+        var level: Bot.Level?
+        var opponents: Int?
+    }
     /// Called with a found match (from the matchmaker screen or an accepted invitation).
     @ObservationIgnored var onMatch: ((GKMatch) -> Void)?
 
@@ -43,6 +50,7 @@ final class GameCenter: NSObject {
                 self.isAuthenticated = GKLocalPlayer.local.isAuthenticated
                 if self.isAuthenticated {
                     GKLocalPlayer.local.register(self)
+                    if #available(iOS 26.0, *) { GKLocalPlayer.local.register(GameActivityListener.shared) }
                     let record = ProgressStore.shared.record
                     self.submitBestTimes(record)
                     // Catching up with what was reached before signing in: no banner for each of them.
@@ -77,23 +85,32 @@ final class GameCenter: NSObject {
             if let board {
                 GKLeaderboard.submitScore(summary.seconds, context: Self.context(mapID: summary.mapID, lives: summary.livesLeft),
                                           player: GKLocalPlayer.local, leaderboardIDs: [board]) { _ in }
+                // Sent now: not again from submitBestTimes at the next sign-in.
+                var sent = UserDefaults.standard.dictionary(forKey: "gameCenterSubmittedBest") as? [String: Int] ?? [:]
+                sent[board] = min(sent[board] ?? .max, summary.seconds)
+                UserDefaults.standard.set(sent, forKey: "gameCenterSubmittedBest")
             }
         }
         reportAchievements(record)
     }
 
     /// The device's best times to Game Center (once signed in: also those from before Game Center).
-    /// Game Center keeps the best score per player, so sending them again does no harm.
+    /// Each one only once: a score sent again at sign-in would count in a running challenge as a new try.
     func submitBestTimes(_ record: PlayerRecord) {
         guard isAuthenticated else { return }
+        let key = "gameCenterSubmittedBest"
+        var sent = UserDefaults.standard.dictionary(forKey: key) as? [String: Int] ?? [:]
         for level in Bot.Level.allCases {
             for opponents in 1...3 {
-                guard let best = record.leaderboard[PlayerRecord.leaderboardKey(level, opponents: opponents)]?.first else { continue }
+                let board = Self.leaderboardID(level, opponents: opponents)
+                guard let best = record.leaderboard[PlayerRecord.leaderboardKey(level, opponents: opponents)]?.first,
+                      best.seconds < sent[board] ?? .max else { continue }
                 GKLeaderboard.submitScore(best.seconds, context: Self.context(mapID: best.mapID, lives: best.livesLeft),
-                                          player: GKLocalPlayer.local,
-                                          leaderboardIDs: [Self.leaderboardID(level, opponents: opponents)]) { _ in }
+                                          player: GKLocalPlayer.local, leaderboardIDs: [board]) { _ in }
+                sent[board] = best.seconds
             }
         }
+        UserDefaults.standard.set(sent, forKey: key)
     }
 
     /// Map and lives left travel with a score as its context: 1 + map index × 100 + lives (0 = unknown).
@@ -125,12 +142,31 @@ final class GameCenter: NSObject {
     enum BoardScope: Hashable { case worldwide, friends }
 
     /// The best ten of a leaderboard (worldwide or among friends) and the player's own place.
+    /// Why the last `loadBoard` brought nothing (shown instead of the leaderboard).
+    enum BoardProblem { case unreachable, missing }
+    private(set) var boardProblem: BoardProblem?
+
     func loadBoard(level: Bot.Level, opponents: Int, scope: BoardScope) async -> BoardPage? {
-        guard isAuthenticated,
-              let board = try? await GKLeaderboard.loadLeaderboards(IDs: [Self.leaderboardID(level, opponents: opponents)]).first,
-              let (mine, entries, total) = try? await board.loadEntries(for: scope == .friends ? .friendsOnly : .global,
+        guard isAuthenticated else { return nil }
+        let boards: [GKLeaderboard]
+        do {
+            boards = try await GKLeaderboard.loadLeaderboards(IDs: [Self.leaderboardID(level, opponents: opponents)])
+        } catch {
+            boardProblem = .unreachable
+            return nil
+        }
+        // No error, but no leaderboard: Game Center does not know it (not live yet).
+        guard let board = boards.first else {
+            boardProblem = .missing
+            return nil
+        }
+        guard let (mine, entries, total) = try? await board.loadEntries(for: scope == .friends ? .friendsOnly : .global,
                                                                        timeScope: .allTime, range: NSRange(location: 1, length: 10))
-        else { return nil }
+        else {
+            boardProblem = .unreachable
+            return nil
+        }
+        boardProblem = nil
         let me = GKLocalPlayer.local.gamePlayerID
         func row(_ e: GKLeaderboard.Entry) -> BoardPage.Row {
             let extra = Self.mapAndLives(context: e.context)
@@ -138,7 +174,7 @@ final class GameCenter: NSObject {
             return .init(rank: e.rank,
                          entry: LeaderboardEntry(name: player.flatMap { Self.object($0, "displayName") as? String } ?? "?",
                                                  mapID: extra?.mapID ?? "",
-                                                 durationTicks: e.score * 1000 / Rules.standard.tickMilliseconds,
+                                                 durationTicks: min(max(e.score, 0), 1_000_000) * 1000 / Rules.standard.tickMilliseconds,
                                                  livesLeft: extra?.lives ?? -1,
                                                  date: Self.object(e, "date") as? Date ?? .distantPast),
                          isMe: player.flatMap { Self.object($0, "gamePlayerID") as? String } == me)
@@ -150,7 +186,7 @@ final class GameCenter: NSObject {
     /// some of them out (a score's date with leaderboards that are not live yet); the Swift properties are
     /// not optional and crash on a missing value, and key-value coding is not supported for them either.
     /// nil if the getter does not exist or returns nothing.
-    static func object(_ object: NSObject, _ getter: String) -> Any? {
+    nonisolated static func object(_ object: NSObject, _ getter: String) -> Any? {
         let selector = NSSelectorFromString(getter)
         guard object.responds(to: selector) else { return nil }
         return object.perform(selector)?.takeUnretainedValue()
@@ -160,7 +196,11 @@ final class GameCenter: NSObject {
     func loadAchievementValues() {
         guard isAuthenticated else { return }
         GKAchievement.loadAchievements { [weak self] loaded, _ in
-            let percent = Dictionary((loaded ?? []).map { ($0.identifier, $0.percentComplete) }, uniquingKeysWith: max)
+            // Values from Game Center: only finite percentages, kept within 0…100.
+            let percent = Dictionary((loaded ?? []).compactMap { a -> (String, Double)? in
+                guard let id = GameCenter.object(a, "identifier") as? String, a.percentComplete.isFinite else { return nil }
+                return (id, min(max(a.percentComplete, 0), 100))
+            }, uniquingKeysWith: max)
             Task { @MainActor in
                 var values: [String: Int] = [:]
                 for achievement in Achievement.all {
@@ -301,14 +341,14 @@ final class GameCenterSession: NSObject, GKMatchDelegate {
     }
 
     nonisolated func match(_ match: GKMatch, didReceive data: Data, fromRemotePlayer player: GKPlayer) {
-        let peer = player.gamePlayerID
+        guard let peer = GameCenter.object(player, "gamePlayerID") as? String else { return }
         Task { @MainActor in
             if let link = self.link { link.received(data, from: peer) } else { self.early.append((data, peer)) }
         }
     }
 
     nonisolated func match(_ match: GKMatch, player: GKPlayer, didChange state: GKPlayerConnectionState) {
-        let peer = player.gamePlayerID
+        guard let peer = GameCenter.object(player, "gamePlayerID") as? String else { return }
         Task { @MainActor in
             switch state {
             case .connected:
@@ -356,5 +396,21 @@ struct PlayerNameField: View {
                 .autocorrectionDisabled()
                 .submitLabel(.done)
         }
+    }
+}
+
+/// An activity from the Games app or from a challenge: a game against the computer. Its leaderboard brings the
+/// difficulty and the number of opponents as properties ("level", "opponents"); the setup page opens with them,
+/// so one tap starts the game. A listener of its own: activities exist from iOS 26 on, the app from iOS 17.
+@available(iOS 26.0, *)
+final class GameActivityListener: NSObject, GKLocalPlayerListener {
+    static let shared = GameActivityListener()
+
+    func player(_ player: GKPlayer, wantsToPlay activity: GKGameActivity) async -> Bool {
+        let properties = activity.properties
+        let level = properties["level"].flatMap(Bot.Level.init(rawValue:))
+        let opponents = properties["opponents"].flatMap(Int.init).map { min(3, max(1, $0)) }
+        await MainActor.run { GameCenter.shared.requestedSetup = .init(level: level, opponents: opponents) }
+        return true
     }
 }

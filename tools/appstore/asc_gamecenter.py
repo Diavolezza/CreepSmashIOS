@@ -60,17 +60,32 @@ def token() -> str:
     return _token[0]
 
 
-def call(method, path, body=None):
+def call(method, path, body=None, attempt=1):
     req = urllib.request.Request(API + path if path.startswith("/") else path, method=method,
                                  data=json.dumps(body).encode() if body is not None else None,
                                  headers={"Authorization": "Bearer " + token(), "Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req) as r:
+        with urllib.request.urlopen(req, timeout=60) as r:
             raw = r.read()
             return json.loads(raw) if raw else {}
     except urllib.error.HTTPError as e:
         detail = e.read().decode(errors="replace")
+        if e.code >= 500 and attempt < 4:          # App Store Connect answers 500 now and then: try again
+            time.sleep(3 * attempt)
+            return call(method, path, body, attempt + 1)
         sys.exit(f"** {method} {path}: HTTP {e.code}\n{detail[:1500]}")
+
+
+def try_call(method, path, body=None):
+    """Like call, but None instead of stopping on an HTTP error (for reads of things that may not exist)."""
+    req = urllib.request.Request(API + path, method=method, data=json.dumps(body).encode() if body is not None else None,
+                                 headers={"Authorization": "Bearer " + token(), "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            raw = r.read()
+            return json.loads(raw) if raw else {}
+    except urllib.error.HTTPError:
+        return None
 
 
 def all_pages(path):
@@ -82,18 +97,21 @@ def all_pages(path):
     return items
 
 
-def upload_image(kind, localization_id, file):
-    """kind: 'gameCenterAchievementImages' or 'gameCenterLeaderboardImages'."""
+def upload_image(kind, parent_id, file, rel=None, rel_type=None):
+    """kind: 'gameCenterAchievementImages' or 'gameCenterLeaderboardImages' (parent: a localization), or with
+    rel/rel_type e.g. 'gameCenterChallengeImages' with rel 'version' and rel_type 'gameCenterChallengeVersions'."""
     data = file.read_bytes()
-    rel = "gameCenterAchievementLocalization" if kind == "gameCenterAchievementImages" else "gameCenterLeaderboardLocalization"
+    if rel is None:
+        rel = "gameCenterAchievementLocalization" if kind == "gameCenterAchievementImages" else "gameCenterLeaderboardLocalization"
+        rel_type = rel + "s"
     r = call("POST", f"/v1/{kind}", {"data": {"type": kind, "attributes": {"fileName": file.name, "fileSize": len(data)},
-             "relationships": {rel: {"data": {"type": rel + "s", "id": localization_id}}}}})
+             "relationships": {rel: {"data": {"type": rel_type, "id": parent_id}}}}})
     image = r["data"]
     for op in image["attributes"]["uploadOperations"]:
         part = data[op["offset"]:op["offset"] + op["length"]]
         req = urllib.request.Request(op["url"], method=op["method"], data=part,
                                      headers={h["name"]: h["value"] for h in op.get("requestHeaders", [])})
-        urllib.request.urlopen(req).read()
+        urllib.request.urlopen(req, timeout=120).read()
     call("PATCH", f"/v1/{kind}/{image['id']}", {"data": {"type": kind, "id": image["id"], "attributes": {"uploaded": True}}})
 
 
@@ -103,8 +121,14 @@ boards = [dict(id=m[0], en=m[1].strip(), de=m[2].strip(), image=m[3]) for m in
           re.findall(r"\| `(cs\.fastest\.[\w.]+)` \| ([^|]+) \| ([^|]+) \| ([\w.-]+\.png) \|", doc)]
 achievements = [dict(id=m[0], points=int(m[1]), en=m[2].strip(), en_desc=m[3].strip(), de=m[4].strip(), de_desc=m[5].strip(), image=m[6])
                 for m in re.findall(r"\| `(cs\.(?!fastest)[\w.]+)` \| (\d+) \| ([^|]+) \| ([^|]+) \| ([^|]+) \| ([^|]+) \| ([\w.-]+\.png) \|", doc)]
-assert len(boards) == 9 and len(achievements) == 39, (len(boards), len(achievements))
-missing_images = [x["image"] for x in boards + achievements if not (IMAGES / x["image"]).exists()]
+challenges = [dict(id=m[0], board=m[1], en=m[2].strip(), en_desc=m[3].strip(), de=m[4].strip(), de_desc=m[5].strip(), image=m[6])
+              for m in re.findall(r"\| `(cs\.challenge\.[\w.]+)` \| `([\w.]+)` \| ([^|]+) \| ([^|]+) \| ([^|]+) \| ([^|]+) \| ([\w.-]+\.png) \|", doc)]
+activities = [dict(id=m[0], en=m[1].strip(), en_desc=m[2].strip(), de=m[3].strip(), de_desc=m[4].strip(), image=m[5])
+              for m in re.findall(r"\| `(cs\.activity\.[\w.]+)` \| ([^|]+) \| ([^|]+) \| ([^|]+) \| ([^|]+) \| ([\w.-]+\.png) \|", doc)]
+FALLBACK_URL = re.search(r"Fallback URL \(systems before iOS 26\): (\S+?)\.? Every", doc).group(1)
+assert len(boards) == 9 and len(achievements) == 39 and len(challenges) == 9 and len(activities) == 1, \
+    (len(boards), len(achievements), len(challenges), len(activities))
+missing_images = [x["image"] for x in boards + achievements + challenges + activities if not (IMAGES / x["image"]).exists()]
 if missing_images:
     sys.exit(f"** images missing ({len(missing_images)}): run python3 tools/appstore/game_center.py --images")
 
@@ -179,7 +203,8 @@ def localizations(kind, parent_id):
     return out
 
 
-for b in boards:
+# --extras: only the activity and the challenges (leaderboards and achievements are complete).
+for b in ([] if "--extras" in sys.argv else boards):
     if b["id"] in existing_boards:
         lb = existing_boards[b["id"]]
     else:
@@ -198,7 +223,7 @@ for b in boards:
             upload_image("gameCenterLeaderboardImages", loc["id"], IMAGES / b["image"])
     print(f"✓ leaderboard {b['id']}")
 
-for a in achievements:
+for a in ([] if "--extras" in sys.argv else achievements):
     if a["id"] in existing_achievements:
         ach = existing_achievements[a["id"]]
     else:
@@ -217,4 +242,59 @@ for a in achievements:
         if not image:
             upload_image("gameCenterAchievementImages", loc["id"], IMAGES / a["image"])
     print(f"✓ achievement {a['id']}")
+# ---- the activity (link to a game against the computer), its version, texts and image; the leaderboards link to it
+existing_activities = {x["attributes"]["vendorIdentifier"]: x for x in
+                       all_pages(f"/v1/gameCenterDetails/{detail['id']}/gameCenterActivities?limit=50")}
+
+
+def version_with_texts(kind, parent_rel, parent_type, parent_id, versions_path, texts, image, version_attributes=None):
+    """The (first) version of a challenge or an activity with its English and German texts and the default image.
+    kind: 'gameCenterChallenge' or 'gameCenterActivity'."""
+    versions = all_pages(versions_path)
+    if versions:
+        version = versions[0]
+    else:
+        body = {"data": {"type": kind + "Versions", "relationships": {parent_rel: {"data": {"type": parent_type, "id": parent_id}}}}}
+        if version_attributes:
+            body["data"]["attributes"] = version_attributes
+        version = call("POST", f"/v1/{kind}Versions", body)["data"]
+    have = {loc["attributes"]["locale"] for loc in all_pages(f"/v1/{kind}Versions/{version['id']}/localizations")}
+    for lang, locale in LOCALES.items():
+        if locale not in have:
+            call("POST", f"/v1/{kind}Localizations", {"data": {"type": kind + "Localizations",
+                 "attributes": {"locale": locale, "name": texts[lang], "description": texts[lang + "_desc"]},
+                 "relationships": {"version": {"data": {"type": kind + "Versions", "id": version["id"]}}}}})
+    if not (try_call("GET", f"/v1/{kind}Versions/{version['id']}/defaultImage") or {}).get("data"):
+        upload_image(kind + "Images", version["id"], IMAGES / image, rel="version", rel_type=kind + "Versions")
+    return version
+
+
+for a in activities:
+    act = existing_activities.get(a["id"]) or call("POST", "/v1/gameCenterActivities", {"data": {"type": "gameCenterActivities",
+          "attributes": {"referenceName": a["en"], "vendorIdentifier": a["id"], "minimumPlayersCount": 1,
+                         "maximumPlayersCount": 1, "supportsPartyCode": False},
+          "relationships": {"gameCenterDetail": {"data": {"type": "gameCenterDetails", "id": detail["id"]}}}}})["data"]
+    version_with_texts("gameCenterActivity", "activity", "gameCenterActivities", act["id"],
+                       f"/v1/gameCenterActivities/{act['id']}/versions", a, a["image"], {"fallbackUrl": FALLBACK_URL})
+    for b in boards:
+        lb = existing_boards[b["id"]]
+        _, level, opponents = b["id"].rsplit(".", 2)
+        call("PATCH", f"/v1/gameCenterLeaderboards/{lb['id']}", {"data": {"type": "gameCenterLeaderboards", "id": lb["id"],
+             "attributes": {"activityProperties": {"level": level, "opponents": opponents}}}})
+        call("PATCH", f"/v1/gameCenterLeaderboards/{lb['id']}/relationships/activity",
+             {"data": {"type": "gameCenterActivities", "id": act["id"]}})
+    print(f"✓ activity {a['id']} (linked to {len(boards)} leaderboards)")
+
+# ---- challenges, one per leaderboard: three days, repeatable
+existing_challenges = {x["attributes"]["vendorIdentifier"]: x for x in
+                       all_pages(f"/v1/gameCenterDetails/{detail['id']}/gameCenterChallenges?limit=50")}
+for c in challenges:
+    ch = existing_challenges.get(c["id"]) or call("POST", "/v1/gameCenterChallenges", {"data": {"type": "gameCenterChallenges",
+         "attributes": {"referenceName": c["en"], "vendorIdentifier": c["id"], "challengeType": "LEADERBOARD",
+                        "repeatable": True},
+         "relationships": {"gameCenterDetail": {"data": {"type": "gameCenterDetails", "id": detail["id"]}},
+                           "leaderboard": {"data": {"type": "gameCenterLeaderboards", "id": existing_boards[c["board"]]["id"]}}}}})["data"]
+    version_with_texts("gameCenterChallenge", "challenge", "gameCenterChallenges", ch["id"],
+                       f"/v1/gameCenterChallenges/{ch['id']}/versions", c, c["image"])
+    print(f"✓ challenge {c['id']}")
 print("✓ done")

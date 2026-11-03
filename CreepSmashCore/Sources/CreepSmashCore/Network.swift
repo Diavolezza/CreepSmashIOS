@@ -64,6 +64,12 @@ public struct MatchSetup: Codable, Equatable, Sendable {
     /// Code of the round; the devices find each other by it for a handover. Empty: no handover (quick game).
     public var code: String
 
+    /// Names come from other devices: at most this many characters, no line breaks.
+    public static let maxNameLength = 24
+    public static func cleanName(_ name: String) -> String {
+        String(name.filter { !$0.isNewline }.prefix(maxNameLength))
+    }
+
     public init(mapID: String, rules: Rules = .standard, names: [String], computers: [Bot.Level?]? = nil,
                 seed: UInt64 = 0, code: String = "") {
         self.mapID = mapID
@@ -281,7 +287,7 @@ public final class HostLobby {
         waiting[id] = nil
         guard version == NetMessage.protocolVersion else { return reject(transport, .otherVersion) }
         guard let seat = seats.firstIndex(of: .open) else { return reject(transport, .full) }
-        seats[seat] = .human(name: name)
+        seats[seat] = .human(name: MatchSetup.cleanName(name))
         seated[seat] = transport
         transport.onReceive = nil
         transport.onClose = { [weak self] in self?.guestLeft(seat: seat) }
@@ -487,11 +493,14 @@ public final class NetworkMatch: Match {
     }
     private var migration: Migration?
 
-    public init?(setup: MatchSetup, localPlayer: Int, links: [Int: Transport]) {
+    public init?(setup received: MatchSetup, localPlayer: Int, links: [Int: Transport]) {
+        // The setup comes from the host: checked completely before it is used.
+        var setup = received
         let count = setup.names.count
         guard (2...4).contains(count), setup.computers.count == count, setup.names.indices.contains(localPlayer),
-              setup.computers[0] == nil, setup.computers[localPlayer] == nil,
+              setup.computers[0] == nil, setup.computers[localPlayer] == nil, setup.rules.isPlausible,
               let map = GameMap.named(setup.mapID) else { return nil }
+        setup.names = setup.names.map(MatchSetup.cleanName)
         self.setup = setup
         self.localPlayer = localPlayer
         self.links = links
@@ -717,7 +726,8 @@ public final class NetworkMatch: Match {
         history.append(NetPacket(player: player, tick: tick, commands: commands))
         guard tick >= game.tick else { return }
         // Only the host puts another player's command into its packets: the surrender of a player who is out.
-        for c in commands where c.tick == tick && (c.player == player || c.command == .surrender) {
+        for c in commands where c.tick == tick && (c.player == player || c.command == .surrender)
+                && game.players.indices.contains(c.player) {
             game.schedule(c)
         }
     }
@@ -999,7 +1009,8 @@ public final class NetworkMatch: Match {
             accept(packet.commands, of: packet.player, tick: packet.tick)
         }
         var left: [Int] = []
-        for end in ended {
+        // From the new host: only players of this game count.
+        for end in ended where setup.names.indices.contains(end.player) && end.player != localPlayer {
             if !gone.contains(end.player) { left.append(end.player) }
             gone.insert(end.player)
             if !game.isFinished && end.tick >= game.tick {

@@ -21,6 +21,8 @@ struct MenuView: View {
     @State private var savedGame = SavedGameStore.load()
     @State private var showRules = false
     @State private var showSetup = false
+    /// Number of computer opponents (1–3), as on the setup page.
+    @AppStorage("opponents") private var opponents = 1
     @State private var showOptions = false
     @State private var showRecords = false
     @State private var showCredits = false
@@ -93,7 +95,10 @@ struct MenuView: View {
             let arguments = ProcessInfo.processInfo.arguments
             if arguments.contains("-credits") { showCredits = true }
             if arguments.contains("-setup") { showSetup = true }
+            openRequestedSetup()
         }
+        // A game asked for from the Games app or a challenge (also one that came during a game: when it ends).
+        .onChange(of: GameCenter.shared.requestedSetup) { openRequestedSetup() }
         .overlay(alignment: .bottomTrailing) {
             Text("v" + AppVersion.text)
                 .font(Theme.mono(12))
@@ -116,6 +121,24 @@ struct MenuView: View {
 }
 
 extension MenuView {
+    /// Opens the setup page with the difficulty and number of opponents of an activity or a challenge;
+    /// whatever else is open on top of the menu closes.
+    private func openRequestedSetup() {
+        guard let request = GameCenter.shared.requestedSetup else { return }
+        GameCenter.shared.requestedSetup = nil
+        if let requested = request.level { level = requested }
+        if let requested = request.opponents { opponents = requested }
+        let covered = showRecords || showRules || showCredits || showOptions || showMultiplayer
+        withoutSliding {
+            showRecords = false; showRules = false; showCredits = false; showOptions = false; showMultiplayer = false
+            if !covered { showSetup = true }
+        }
+        // A page cannot open while another one is still closing.
+        if covered {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { withoutSliding { showSetup = true } }
+        }
+    }
+
     /// Continue the interrupted game (only if there is one), with map, difficulty and game time below.
     @ViewBuilder private var continueButton: some View {
         if let savedGame {

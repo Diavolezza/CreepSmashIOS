@@ -22,6 +22,16 @@ public struct Rules: Codable, Equatable, Sendable {
     public static let standard = Rules()
 
     public var ticksPerSecond: Int { 1000 / tickMilliseconds }
+
+    /// Rules from another device or a saved file are only used if every value lies in a sensible range
+    /// (no division by zero, no endless waves).
+    public var isPlausible: Bool {
+        (1...1000).contains(tickMilliseconds) && (1...10_000).contains(startLives)
+            && (0...10_000_000).contains(startCredits) && (0...10_000_000).contains(startIncome)
+            && (1...100_000).contains(incomeIntervalTicks) && (0...100_000).contains(startTick)
+            && (1...200).contains(inputDelayTicks) && (0...100_000).contains(actionTicks)
+            && (1...100).contains(waveSize) && (0...1000).contains(waveSpacingTicks) && (0...100).contains(sellRefundPercent)
+    }
 }
 
 /// Geometry of the board. Positions are computed in milli-pixels (1 px = 1000).

@@ -32,6 +32,34 @@ wins per difficulty and number of computer opponents).
 | `cs.fastest.hard.2` | Fastest · Hard · 2 opponents | Bestzeit · Schwer · 2 Gegner | fastest-hard-2.png |
 | `cs.fastest.hard.3` | Fastest · Hard · 3 opponents | Bestzeit · Schwer · 3 Gegner | fastest-hard-3.png |
 
+## Challenges (9)
+
+One per leaderboard. Type **Leaderboard**, allowed duration **3 days**, repeatable (the player who challenges
+chooses 1, 3 or unlimited tries). Default image 3840 × 2160.
+
+| ID | Leaderboard | Name (en) | Description (en) | Name (de) | Description (de) | Image |
+|---|---|---|---|---|---|---|
+| `cs.challenge.easy.1` | `cs.fastest.easy.1` | Race · Easy · 1 opponent | Who beats the computer on Easy the fastest? | Wettlauf · Leicht · 1 Gegner | Wer schlägt den Computer auf Leicht am schnellsten? | challenge-easy-1.png |
+| `cs.challenge.easy.2` | `cs.fastest.easy.2` | Race · Easy · 2 opponents | Who beats 2 computers on Easy the fastest? | Wettlauf · Leicht · 2 Gegner | Wer schlägt 2 Computer auf Leicht am schnellsten? | challenge-easy-2.png |
+| `cs.challenge.easy.3` | `cs.fastest.easy.3` | Race · Easy · 3 opponents | Who beats 3 computers on Easy the fastest? | Wettlauf · Leicht · 3 Gegner | Wer schlägt 3 Computer auf Leicht am schnellsten? | challenge-easy-3.png |
+| `cs.challenge.normal.1` | `cs.fastest.normal.1` | Race · Normal · 1 opponent | Who beats the computer on Normal the fastest? | Wettlauf · Normal · 1 Gegner | Wer schlägt den Computer auf Normal am schnellsten? | challenge-normal-1.png |
+| `cs.challenge.normal.2` | `cs.fastest.normal.2` | Race · Normal · 2 opponents | Who beats 2 computers on Normal the fastest? | Wettlauf · Normal · 2 Gegner | Wer schlägt 2 Computer auf Normal am schnellsten? | challenge-normal-2.png |
+| `cs.challenge.normal.3` | `cs.fastest.normal.3` | Race · Normal · 3 opponents | Who beats 3 computers on Normal the fastest? | Wettlauf · Normal · 3 Gegner | Wer schlägt 3 Computer auf Normal am schnellsten? | challenge-normal-3.png |
+| `cs.challenge.hard.1` | `cs.fastest.hard.1` | Race · Hard · 1 opponent | Who beats the computer on Hard the fastest? | Wettlauf · Schwer · 1 Gegner | Wer schlägt den Computer auf Schwer am schnellsten? | challenge-hard-1.png |
+| `cs.challenge.hard.2` | `cs.fastest.hard.2` | Race · Hard · 2 opponents | Who beats 2 computers on Hard the fastest? | Wettlauf · Schwer · 2 Gegner | Wer schlägt 2 Computer auf Schwer am schnellsten? | challenge-hard-2.png |
+| `cs.challenge.hard.3` | `cs.fastest.hard.3` | Race · Hard · 3 opponents | Who beats 3 computers on Hard the fastest? | Wettlauf · Schwer · 3 Gegner | Wer schlägt 3 Computer auf Schwer am schnellsten? | challenge-hard-3.png |
+
+## Activity (1)
+
+Opens a game against the computer from the Games app or from a challenge. 1 player, no party code.
+Fallback URL (systems before iOS 26): https://diavolezza.github.io/creepsmash/support.html. Every leaderboard links to it with the
+properties `level` (easy, normal, hard) and `opponents` (1–3); the app opens the setup page with them.
+Image 3840 × 2160.
+
+| ID | Name (en) | Description (en) | Name (de) | Description (de) | Image |
+|---|---|---|---|---|---|
+| `cs.activity.computer` | Vs. computer | Beat one to three computers as fast as you can. | Gegen Computer | Schlag einen bis drei Computer, so schnell du kannst. | activity-computer.png |
+
 ## Achievements (39, 940 points of max. 1000)
 
 One Game Center achievement per tier of an app achievement; the app reports the progress of each tier

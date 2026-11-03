@@ -95,7 +95,9 @@ struct HallOfFameView: View {
                 } else if let page {
                     gameCenterBoard(page)
                 } else {
-                    Text(L("Game Center cannot be reached right now. Your best times on this device:"))
+                    Text(GameCenter.shared.boardProblem == .missing
+                         ? L("This leaderboard is not available in Game Center yet. Your best times on this device:")
+                         : L("Game Center cannot be reached right now. Your best times on this device:"))
                         .font(Theme.mono(14)).foregroundStyle(.gray)
                         .multilineTextAlignment(.center)
                     localBoard

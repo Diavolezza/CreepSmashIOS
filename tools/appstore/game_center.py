@@ -88,6 +88,25 @@ for raw, en, de in levels:
                        "title_de": f"Bestzeit · {de} · {n} Gegner",
                        "image": f"fastest-{raw}-{n}.png", "level": raw, "n": n})
 
+# Challenges: one per leaderboard (players challenge each other on it); allowed duration three days.
+challenges = []
+for raw, en, de in levels:
+    for n in (1, 2, 3):
+        challenges.append({"id": f"cs.challenge.{raw}.{n}", "board": f"cs.fastest.{raw}.{n}",
+                           "title_en": f"Race · {en} · {n} opponent{'s' if n > 1 else ''}",
+                           "title_de": f"Wettlauf · {de} · {n} Gegner",
+                           "desc_en": (f"Who beats the computer on {en} the fastest?" if n == 1
+                                       else f"Who beats {n} computers on {en} the fastest?"),
+                           "desc_de": (f"Wer schlägt den Computer auf {de} am schnellsten?" if n == 1
+                                       else f"Wer schlägt {n} Computer auf {de} am schnellsten?"),
+                           "image": f"challenge-{raw}-{n}.png", "level": raw, "n": n})
+# Activity: the link from the Games app (and from a challenge) straight to a game against the computer; the
+# leaderboards carry the difficulty and the number of opponents as its properties.
+activity = {"id": "cs.activity.computer", "title_en": "Vs. computer", "title_de": "Gegen Computer",
+            "desc_en": "Beat one to three computers as fast as you can.",
+            "desc_de": "Schlag einen bis drei Computer, so schnell du kannst.",
+            "image": "activity-computer.png", "fallback": "https://diavolezza.github.io/creepsmash/support.html"}
+
 doc = [
     "# Game Center – configuration for App Store Connect",
     "",
@@ -115,6 +134,28 @@ doc = [
     "|---|---|---|---|",
 ] + [f"| `{b['id']}` | {b['title_en']} | {b['title_de']} | {b['image']} |" for b in boards] + [
     "",
+    f"## Challenges ({len(challenges)})",
+    "",
+    "One per leaderboard. Type **Leaderboard**, allowed duration **3 days**, repeatable (the player who challenges",
+    "chooses 1, 3 or unlimited tries). Default image 3840 × 2160.",
+    "",
+    "| ID | Leaderboard | Name (en) | Description (en) | Name (de) | Description (de) | Image |",
+    "|---|---|---|---|---|---|---|",
+] + [f"| `{c['id']}` | `{c['board']}` | {c['title_en']} | {c['desc_en']} | {c['title_de']} | {c['desc_de']} | {c['image']} |"
+     for c in challenges] + [
+    "",
+    "## Activity (1)",
+    "",
+    "Opens a game against the computer from the Games app or from a challenge. 1 player, no party code.",
+    f"Fallback URL (systems before iOS 26): {activity['fallback']}. Every leaderboard links to it with the",
+    "properties `level` (easy, normal, hard) and `opponents` (1–3); the app opens the setup page with them.",
+    "Image 3840 × 2160.",
+    "",
+    "| ID | Name (en) | Description (en) | Name (de) | Description (de) | Image |",
+    "|---|---|---|---|---|---|",
+    f"| `{activity['id']}` | {activity['title_en']} | {activity['desc_en']} | {activity['title_de']} | {activity['desc_de']} | {activity['image']} |",
+] + [
+    "",
     f"## Achievements ({len(rows)}, {total} points of max. 1000)",
     "",
     "One Game Center achievement per tier of an app achievement; the app reports the progress of each tier",
@@ -125,11 +166,12 @@ doc = [
     "|---|---:|---|---|---|---|---|",
 ] + [f"| `{r['id']}` | {r['points']} | {r['title_en']} | {r['desc_en']} | {r['title_de']} | {r['desc_de']} | {r['image']} |"
      for r in rows]
-too_long = [t for x in boards + rows for k, t in x.items() if (k.startswith("title") and len(t) > 30) or (k.startswith("desc") and len(t) > 200)]
+too_long = [t for x in boards + rows + challenges + [activity] for k, t in x.items() if (k.startswith("title") and len(t) > 30) or (k.startswith("desc") and len(t) > 200)]
 if too_long:
     sys.exit(f"** too long for Game Center (names 30, descriptions 200): {too_long}")
 (ROOT / "docs/appstore/game-center.md").write_text("\n".join(doc) + "\n")
-print(f"{len(boards)} leaderboards, {len(rows)} achievements, {total} points → docs/appstore/game-center.md")
+print(f"{len(boards)} leaderboards, {len(rows)} achievements ({total} points), {len(challenges)} challenges, 1 activity"
+      " → docs/appstore/game-center.md")
 if total > 1000:
     sys.exit("** more than 1000 points **")
 
@@ -289,4 +331,70 @@ for b in boards:
     d = ImageDraw.Draw(img)
     d.text((C, C + 160), "1v" + str(b["n"]), font=ImageFont.truetype(str(ROOT / "CreepSmash/Fonts/PressStart2P-Regular.ttf"), 64), fill=c, anchor="mm")
     img.save(OUT / b["image"])
-print(f"{len(rows) + len(boards)} images → {OUT.relative_to(ROOT)}")
+# Challenges and the activity: 3840 × 2160, no transparency. The synthwave ground of the app's start screen
+# (horizon, perspective grid, stars), the stopwatch of the leaderboard large on it with "1v1" … "1v3".
+W, H = 3840, 2160
+GREEN = (61, 255, 126)
+
+
+def wide_ground(seed):
+    import random
+    rnd = random.Random(seed)
+    img = Image.new("RGB", (W, H), (5, 7, 10))
+    d = ImageDraw.Draw(img)
+    horizon = int(H * 0.62)
+    for y in range(horizon):                                   # sky: dark to a green haze at the horizon
+        t = y / horizon
+        d.line([(0, y), (W, y)], fill=(int(5 + 6 * t), int(7 + 40 * t ** 3), int(10 + 14 * t ** 3)))
+    for _ in range(260):
+        x, y, r = rnd.randrange(W), rnd.randrange(horizon - 80), rnd.choice((2, 3, 3, 4, 5))
+        g = rnd.randrange(120, 230)
+        d.ellipse((x - r, y - r, x + r, y + r), fill=(g, g, g))
+    grid = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    g = ImageDraw.Draw(grid)
+    cx = W // 2
+    for k in range(-26, 27):                                   # lines to the vanishing point
+        g.line([(cx + k * 40, horizon), (cx + k * 520, H)], fill=GREEN + (150,), width=5)
+    y, step = horizon, 18
+    while y < H:                                               # cross lines, wider apart towards the front
+        g.line([(0, y), (W, y)], fill=GREEN + (150,), width=5)
+        y += step
+        step = int(step * 1.32) + 2
+    g.line([(0, horizon), (W, horizon)], fill=GREEN + (255,), width=10)
+    img = Image.alpha_composite(img.convert("RGBA"), grid.filter(ImageFilter.GaussianBlur(10)))
+    return Image.alpha_composite(img, grid)
+
+
+def wide_glow(img, draw_fn, color, width):
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    draw_fn(ImageDraw.Draw(layer), color, width * 2)
+    img = Image.alpha_composite(img, layer.filter(ImageFilter.GaussianBlur(40)))
+    sharp = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    draw_fn(ImageDraw.Draw(sharp), color, width)
+    return Image.alpha_composite(img, sharp)
+
+
+def big_stopwatch(cx, cy, r):
+    def f(d, c, w):
+        d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=c, width=w)
+        d.line([(cx, cy - r), (cx, cy - r - 110)], fill=c, width=w)
+        d.line([(cx - 120, cy - r - 120), (cx + 120, cy - r - 120)], fill=c, width=w)
+        d.line([(cx, cy), (cx + int(r * 0.48), cy - int(r * 0.42))], fill=c, width=w)
+        d.line([(cx + int(r * 0.78), cy - int(r * 0.78)), (cx + int(r * 0.9), cy - int(r * 0.9))], fill=c, width=w)
+    return f
+
+
+big = ImageFont.truetype(str(ROOT / "CreepSmash/Fonts/PressStart2P-Regular.ttf"), 210)
+for ch in challenges:
+    c = LEVEL[ch["level"]]
+    img = wide_glow(wide_ground(ch["id"]), big_stopwatch(W // 2, 860, 520), c, 34)
+    d = ImageDraw.Draw(img)
+    d.text((W // 2, 1150), "1v" + str(ch["n"]), font=big, fill=c, anchor="mm")
+    img.convert("RGB").save(OUT / ch["image"])
+
+# The activity: the three difficulties as three stopwatches side by side.
+img = wide_ground("activity")
+for k, (raw, _, _) in enumerate(levels):
+    img = wide_glow(img, big_stopwatch(W // 2 + (k - 1) * 1150, 900, 380), LEVEL[raw], 30)
+img.convert("RGB").save(OUT / activity["image"])
+print(f"{len(rows) + len(boards) + len(challenges) + 1} images → {OUT.relative_to(ROOT)}")
