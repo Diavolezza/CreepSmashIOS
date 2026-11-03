@@ -45,7 +45,8 @@ final class GameCenter: NSObject {
                     GKLocalPlayer.local.register(self)
                     let record = ProgressStore.shared.record
                     self.submitBestTimes(record)
-                    self.reportAchievements(record)
+                    // Catching up with what was reached before signing in: no banner for each of them.
+                    self.reportAchievements(record, banners: false)
                     self.loadAchievementValues()
                 }
             }
@@ -136,10 +137,16 @@ final class GameCenter: NSObject {
             return .init(rank: e.rank,
                          entry: LeaderboardEntry(name: e.player.displayName, mapID: extra?.mapID ?? "",
                                                  durationTicks: e.score * 1000 / Rules.standard.tickMilliseconds,
-                                                 livesLeft: extra?.lives ?? -1, date: e.date),
+                                                 livesLeft: extra?.lives ?? -1, date: Self.date(of: e)),
                          isMe: e.player.gamePlayerID == me)
         }
         return BoardPage(rows: entries.map(row), mine: mine.map(row), total: total)
+    }
+
+    /// The date of a score. Game Center may leave it out (seen with leaderboards that are not live yet), and the
+    /// Swift property then crashes on the missing value; read it without the bridge. Missing = `.distantPast`.
+    static func date(of entry: GKLeaderboard.Entry) -> Date {
+        (entry as NSObject).value(forKey: "date") as? Date ?? .distantPast
     }
 
     /// Reads the player's achievement progress from Game Center and turns it back into the app's values.
@@ -161,7 +168,9 @@ final class GameCenter: NSObject {
     }
 
     /// Reports the progress of every tier (Game Center keeps the highest value reported, so this can be repeated).
-    func reportAchievements(_ record: PlayerRecord) {
+    /// `banners`: Game Center announces a tier completed by this report at the top of the screen – after a game,
+    /// not when catching up at sign-in (that showed one banner after the other over the menu).
+    func reportAchievements(_ record: PlayerRecord, banners: Bool = true) {
         guard isAuthenticated else { return }
         let achievements = Achievement.all.flatMap { achievement in
             achievement.tiers.enumerated().compactMap { index, threshold -> GKAchievement? in
@@ -169,7 +178,7 @@ final class GameCenter: NSObject {
                 guard progress > 0 else { return nil }
                 let gk = GKAchievement(identifier: Self.achievementID(achievement.id, tier: index + 1))
                 gk.percentComplete = min(100, Double(progress) * 100 / Double(threshold))
-                gk.showsCompletionBanner = true
+                gk.showsCompletionBanner = banners
                 return gk
             }
         }

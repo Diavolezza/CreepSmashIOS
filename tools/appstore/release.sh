@@ -27,6 +27,8 @@ xcodebuild -project CreepSmash.xcodeproj -scheme CreepSmash -configuration Relea
   DEVELOPMENT_TEAM="$TEAM" archive 2>&1 | grep -E "error:|warning: .*(sign|provision)|ARCHIVE" || true
 [ -d "$ARCHIVE" ] || { echo "** archive failed **"; exit 1; }
 plutil -p "$ARCHIVE/Info.plist" | grep -E "CFBundleShortVersionString|CFBundleVersion|SigningIdentity|Team" || true
+# An old export would otherwise be checked below (with --no-upload the new one lands here).
+rm -rf build/release/export
 echo "▸ exporting$([ "${2:-}" = "--no-upload" ] && echo "" || echo " and uploading to App Store Connect")"
 xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportPath build/release/export \
   -exportOptionsPlist build/release/ExportOptions.plist -allowProvisioningUpdates 2>&1 \
@@ -35,5 +37,5 @@ IPA=$(ls build/release/export/*.ipa 2>/dev/null | head -1)
 if [ -n "$IPA" ]; then
   rm -rf build/release/check && mkdir -p build/release/check && unzip -q "$IPA" -d build/release/check
   echo "▸ entitlements of the exported app:"
-  codesign -d --entitlements - --xml build/release/check/Payload/*.app 2>/dev/null | plutil -p - 2>/dev/null | sed 's/^/    /'
+  codesign -d --entitlements - --xml build/release/check/Payload/*.app 2>/dev/null | plutil -p - 2>/dev/null | sed 's/^/    /' || true
 fi

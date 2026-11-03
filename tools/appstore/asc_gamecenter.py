@@ -8,6 +8,7 @@ Only the standard library and the openssl command are used.
 
   python3 tools/appstore/asc_gamecenter.py            # check: sign in, find the app, list what exists
   python3 tools/appstore/asc_gamecenter.py --apply    # create what is missing (existing entries are skipped)
+  python3 tools/appstore/asc_gamecenter.py --attach [--version=1.0.2]   # Game Center for the editable App Store version
 """
 import base64, json, os, pathlib, re, ssl, subprocess, sys, time, urllib.error, urllib.request
 
@@ -139,6 +140,31 @@ if "--status" in sys.argv and detail:
             print(loc["attributes"].get("locale"), "image:", (img.get("attributes") or {}).get("assetDeliveryState"))
         v2 = call("GET", f"/v2/{kind}s/{first['id']}?include=versions")
         print(json.dumps(v2, indent=1)[:2500])
+    sys.exit(0)
+if "--attach" in sys.argv:
+    # Game Center for an App Store version (default: the editable one): without this link the leaderboards
+    # and achievements are not visible in any build, not even in TestFlight.
+    wanted = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--version=")), None)
+    versions = all_pages(f"/v1/apps/{app['id']}/appStoreVersions?filter[platform]=IOS&limit=50")
+    editable = ("PREPARE_FOR_SUBMISSION", "DEVELOPER_REJECTED", "REJECTED", "METADATA_REJECTED")
+    version = next((v for v in versions if (v["attributes"]["versionString"] == wanted if wanted
+                    else v["attributes"].get("appStoreState") in editable)), None)
+    if not version:
+        sys.exit("** no editable App Store version (create it in App Store Connect first): "
+                 + ", ".join(f"{v['attributes']['versionString']} {v['attributes'].get('appStoreState')}" for v in versions))
+    print(f"  App Store version {version['attributes']['versionString']} ({version['attributes'].get('appStoreState')})")
+    linked = None
+    for gv in all_pages(f"/v1/gameCenterDetails/{detail['id']}/gameCenterAppVersions?limit=50"):
+        sv = call("GET", f"/v1/gameCenterAppVersions/{gv['id']}/appStoreVersion").get("data")
+        print(f"  Game Center app version {gv['id']}: {json.dumps(gv['attributes'])} → {sv and sv['attributes']['versionString']}")
+        if sv and sv["id"] == version["id"]:
+            linked = gv
+    if linked:
+        print("✓ Game Center already attached to this version")
+    else:
+        linked = call("POST", "/v1/gameCenterAppVersions", {"data": {"type": "gameCenterAppVersions",
+                      "relationships": {"appStoreVersion": {"data": {"type": "appStoreVersions", "id": version["id"]}}}}})["data"]
+        print(f"✓ Game Center attached to version {version['attributes']['versionString']}: {json.dumps(linked['attributes'])}")
     sys.exit(0)
 if not apply:
     sys.exit(0)

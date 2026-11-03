@@ -293,8 +293,10 @@ private struct LeaderboardCard: View {
                         Text(L(key: map.name))
                     }
                     Spacer(minLength: 0)
-                    Text(entry.date.formatted(Date.FormatStyle(date: .numeric, time: .omitted)
-                        .locale(AppLanguage.current.locale)))
+                    if entry.date != .distantPast {
+                        Text(entry.date.formatted(Date.FormatStyle(date: .numeric, time: .omitted)
+                            .locale(AppLanguage.current.locale)))
+                    }
                 }
                 .font(Theme.mono(14)).foregroundStyle(.gray)
             }
