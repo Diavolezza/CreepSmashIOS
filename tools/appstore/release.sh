@@ -33,7 +33,7 @@ echo "▸ exporting$([ "${2:-}" = "--no-upload" ] && echo "" || echo " and uploa
 xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportPath build/release/export \
   -exportOptionsPlist build/release/ExportOptions.plist -allowProvisioningUpdates 2>&1 \
   | grep -E "error|Upload|uploaded|EXPORT" | tail -15
-IPA=$(ls build/release/export/*.ipa 2>/dev/null | head -1)
+IPA=$(ls build/release/export/*.ipa 2>/dev/null | head -1 || true)
 if [ -n "$IPA" ]; then
   rm -rf build/release/check && mkdir -p build/release/check && unzip -q "$IPA" -d build/release/check
   echo "▸ entitlements of the exported app:"

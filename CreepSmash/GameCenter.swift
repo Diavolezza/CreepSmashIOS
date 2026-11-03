@@ -134,19 +134,26 @@ final class GameCenter: NSObject {
         let me = GKLocalPlayer.local.gamePlayerID
         func row(_ e: GKLeaderboard.Entry) -> BoardPage.Row {
             let extra = Self.mapAndLives(context: e.context)
+            let player = Self.object(e, "player") as? GKPlayer
             return .init(rank: e.rank,
-                         entry: LeaderboardEntry(name: e.player.displayName, mapID: extra?.mapID ?? "",
+                         entry: LeaderboardEntry(name: player.flatMap { Self.object($0, "displayName") as? String } ?? "?",
+                                                 mapID: extra?.mapID ?? "",
                                                  durationTicks: e.score * 1000 / Rules.standard.tickMilliseconds,
-                                                 livesLeft: extra?.lives ?? -1, date: Self.date(of: e)),
-                         isMe: e.player.gamePlayerID == me)
+                                                 livesLeft: extra?.lives ?? -1,
+                                                 date: Self.object(e, "date") as? Date ?? .distantPast),
+                         isMe: player.flatMap { Self.object($0, "gamePlayerID") as? String } == me)
         }
         return BoardPage(rows: entries.map(row), mine: mine.map(row), total: total)
     }
 
-    /// The date of a score. Game Center may leave it out (seen with leaderboards that are not live yet), and the
-    /// Swift property then crashes on the missing value; read it without the bridge. Missing = `.distantPast`.
-    static func date(of entry: GKLeaderboard.Entry) -> Date {
-        (entry as NSObject).value(forKey: "date") as? Date ?? .distantPast
+    /// An object property of a Game Center object, read through the Objective-C getter. Game Center leaves
+    /// some of them out (a score's date with leaderboards that are not live yet); the Swift properties are
+    /// not optional and crash on a missing value, and key-value coding is not supported for them either.
+    /// nil if the getter does not exist or returns nothing.
+    static func object(_ object: NSObject, _ getter: String) -> Any? {
+        let selector = NSSelectorFromString(getter)
+        guard object.responds(to: selector) else { return nil }
+        return object.perform(selector)?.takeUnretainedValue()
     }
 
     /// Reads the player's achievement progress from Game Center and turns it back into the app's values.
