@@ -31,7 +31,7 @@ struct MenuView: View {
 
     var body: some View {
         ZStack {
-            RetroBackground()
+            RetroBackground(paused: showSetup || showRecords || showMultiplayer)
             VStack(spacing: Theme.s(0)) {
                 Spacer(minLength: 8)
                 Image("logo")

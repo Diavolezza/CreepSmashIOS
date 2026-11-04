@@ -3,8 +3,13 @@ import SwiftUI
 /// Animated background of the start screen in 80s arcade style: twinkling stars above a glowing horizon
 /// and a green perspective grid that scrolls towards the viewer.
 struct RetroBackground: View {
+    /// True while a page covers the start screen: then nothing needs to move.
+    var paused = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
-        TimelineView(.animation) { timeline in
+        // 30 frames are enough for slowly drifting stars and grid lines; with "Reduce Motion" a still picture.
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: paused || reduceMotion)) { timeline in
             Canvas { ctx, size in
                 draw(&ctx, size: size, time: timeline.date.timeIntervalSinceReferenceDate)
             }

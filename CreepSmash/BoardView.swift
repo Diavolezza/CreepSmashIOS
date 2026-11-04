@@ -10,7 +10,7 @@ struct BoardView: View {
 
     var body: some View {
         GeometryReader { geo in
-            TimelineView(.animation(paused: controller.isPaused)) { timeline in
+            TimelineView(.animation(minimumInterval: 1 / Double(FrameRate.maximum), paused: controller.isPaused)) { timeline in
                 Canvas { context, size in
                     var renderer = BoardRenderer(controller: controller, player: player,
                                                  detailed: interactive, date: timeline.date)

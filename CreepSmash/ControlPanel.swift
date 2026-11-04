@@ -26,7 +26,7 @@ struct TowerColumn: View {
                 .hoverTip(kind.tooltip)
                 .frame(maxWidth: horizontal ? .infinity : nil)
                 .frame(height: rowHeight)
-                .accessibilityLabel(L("\(kind.name), \(price) credits"))
+                .accessibilityLabel(TooltipCache.text("a11y.tower.\(kind.rawValue).\(price)") { L("\(kind.name), \(price) credits") })
             }
         }
     }
@@ -110,7 +110,10 @@ struct CreepTile: View {
                     streaming = false
                 })
             .hoverTip(type.tooltip)
-            .accessibilityLabel(L("\(s.name), \(price) credits, income plus \(s.income * controller.recipients)"))
+            // Built once per price (localizing it with every change of the credits cost a tenth of the app's time).
+            .accessibilityLabel(TooltipCache.text("a11y.creep.\(type.rawValue).\(price)") {
+                L("\(s.name), \(price) credits, income plus \(s.income * controller.recipients)")
+            })
     }
 }
 

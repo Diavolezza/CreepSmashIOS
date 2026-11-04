@@ -232,3 +232,12 @@ extension PageHeader where Trailing == EmptyView {
         self.init(title, onBack: onBack) { EmptyView() }
     }
 }
+
+/// How often the screen is redrawn. The game computes 20 steps per second; drawn in between with the
+/// positions interpolated, 60 frames look as smooth as the 120 of a ProMotion display and cost half the
+/// energy. In the iPhone's Low Power Mode: 30.
+enum FrameRate {
+    static var maximum: Int { ProcessInfo.processInfo.isLowPowerModeEnabled ? 30 : 60 }
+    /// While nothing moves (pause, game over): just enough to notice a change.
+    static let idle = 10
+}

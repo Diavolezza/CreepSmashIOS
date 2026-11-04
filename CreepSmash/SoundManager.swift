@@ -28,8 +28,9 @@ final class SoundManager {
     private(set) var sessionActive = false
 
     private var defaults: UserDefaults { .standard }
-    var enabled: Bool { defaults.object(forKey: Key.enabled) as? Bool ?? true }
-    var shotsEnabled: Bool { defaults.object(forKey: Key.shots) as? Bool ?? true }
+    // Read with bool(forKey:): it also understands "NO" from a launch argument (as? Bool took that for "not set").
+    var enabled: Bool { defaults.object(forKey: Key.enabled) == nil ? true : defaults.bool(forKey: Key.enabled) }
+    var shotsEnabled: Bool { defaults.object(forKey: Key.shots) == nil ? true : defaults.bool(forKey: Key.shots) }
     var volume: Float { Float(defaults.object(forKey: Key.volume) as? Double ?? 0.7) }
 
     private init() {}
@@ -161,8 +162,33 @@ final class AudioOutput {
         }
     }
 
+    /// When the last effect was started; after a few quiet seconds without music the engine pauses, so the
+    /// audio hardware can sleep. The next effect or the music starts it again.
+    private var lastSound: CFTimeInterval = 0
+    private var idleCheck: Timer?
+    private static let idleSeconds: CFTimeInterval = 5
+
+    private func watchForSilence() {
+        guard idleCheck == nil else { return }
+        idleCheck = Timer.scheduledTimer(withTimeInterval: Self.idleSeconds, repeats: true) { _ in
+            MainActor.assumeIsolated { AudioOutput.shared.pauseIfSilent() }
+        }
+    }
+
+    private func pauseIfSilent() {
+        guard engine.isRunning else { idleCheck?.invalidate(); idleCheck = nil; return }
+        // A voice counts as playing even after its effect has ended; the effects are short (under two
+        // seconds), so the time since the last one decides.
+        guard !musicNode.isPlaying, CACurrentMediaTime() - lastSound > Self.idleSeconds else { return }
+        voices.forEach { $0.stop() }
+        engine.pause()
+        idleCheck?.invalidate()
+        idleCheck = nil
+    }
+
     @discardableResult
     func run() -> Bool {
+        defer { if engine.isRunning { watchForSilence() } }
         if engine.isRunning { return true }
         guard SoundManager.shared.sessionActive else { return false }
         do { try engine.start() } catch { return false }
@@ -181,6 +207,7 @@ final class AudioOutput {
         voice.scheduleBuffer(buffer, at: nil, options: .interrupts)
         voice.play()
         started[index] = now
+        lastSound = now
     }
 
     private func restart() {
@@ -188,7 +215,9 @@ final class AudioOutput {
         // Give the new output a moment to settle, then start again.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             MainActor.assumeIsolated {
-                guard AudioOutput.shared.run() else { return }
+                // Only for the music: without it the engine stays off until the next effect
+                // (pausing the engine also reports a change of the configuration).
+                guard MusicPlayer.shared.enabled, AudioOutput.shared.run() else { return }
                 AudioOutput.shared.onRestart?()
             }
         }

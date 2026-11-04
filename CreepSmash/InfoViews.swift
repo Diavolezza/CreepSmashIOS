@@ -34,9 +34,26 @@ extension CreepType {
     }
 }
 
+/// The tooltips are the same for the whole game but were built anew whenever a button was redrawn
+/// (with every change of the credits): a quarter of the app's computing time in a game for four (measured
+/// with Instruments). Now built once per language.
+@MainActor
+enum TooltipCache {
+    private static var texts: [String: String] = [:]
+    static func text(_ key: String, make: () -> String) -> String {
+        let full = AppLanguage.current.locale.identifier + "|" + key
+        if let text = texts[full] { return text }
+        let text = make()
+        texts[full] = text
+        return text
+    }
+}
+
 extension TowerKind {
     /// Tooltip on the build button (pointer on Mac and iPad).
-    var tooltip: String {
+    @MainActor var tooltip: String { TooltipCache.text("tower.\(rawValue)") { makeTooltip } }
+
+    private var makeTooltip: String {
         let s = stats(level: 1), top = stats(level: maxLevel)
         return name + " – " + summary + "\n"
             + L("Damage \(Format.short(s.damage)) · range \(s.range) · every \(InfoFormat.seconds(ticks: s.reloadTicks))") + "\n"
@@ -46,7 +63,9 @@ extension TowerKind {
 
 extension CreepType {
     /// Tooltip on the send button (pointer on Mac and iPad).
-    var tooltip: String {
+    @MainActor var tooltip: String { TooltipCache.text("creep.\(rawValue)") { makeTooltip } }
+
+    private var makeTooltip: String {
         let s = stats
         let line = L("\(Format.short(s.health)) health · \(speedLabel) · +\(Format.short(s.income)) income")
         return s.name + (specialLabel.isEmpty ? "" : " – " + specialLabel) + "\n" + line

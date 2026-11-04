@@ -338,6 +338,8 @@ final class GameController {
 
     private func frame(timestamp: CFTimeInterval) {
         defer { lastTimestamp = timestamp }
+        // The clock of the game: full rate only while it runs.
+        link?.setMaximumRate(isPaused || game.isFinished || isOutOfLocalGame ? FrameRate.idle : FrameRate.maximum)
         syncNetworkPause()
         guard let last = lastTimestamp, !isPaused, !game.isFinished, !isOutOfLocalGame else { return }
         accumulator += min(timestamp - last, 0.25)
@@ -599,6 +601,14 @@ private final class DisplayLinkProxy: NSObject {
 
     @objc private func tick(_ link: CADisplayLink) {
         callback(link.timestamp)
+    }
+
+    private var maximumRate = 0
+    /// At most `fps` calls per second (the display may offer 120).
+    func setMaximumRate(_ fps: Int) {
+        guard fps != maximumRate, let link else { return }
+        maximumRate = fps
+        link.preferredFrameRateRange = CAFrameRateRange(minimum: Float(min(fps, 10)), maximum: Float(fps), preferred: Float(fps))
     }
 
     func invalidate() {
