@@ -188,8 +188,11 @@ final class GameCenter: NSObject {
     /// nil if the getter does not exist or returns nothing.
     nonisolated static func object(_ object: NSObject, _ getter: String) -> Any? {
         let selector = NSSelectorFromString(getter)
-        guard object.responds(to: selector) else { return nil }
-        return object.perform(selector)?.takeUnretainedValue()
+        // GKLeaderboardEntry hands most of its properties on to an internal object (forwardingTarget):
+        // the getter is answered there, not by the entry itself.
+        let target = object.responds(to: selector) ? object : object.forwardingTarget(for: selector) as? NSObject
+        guard let target, target.responds(to: selector) else { return nil }
+        return target.perform(selector)?.takeUnretainedValue()
     }
 
     /// Reads the player's achievement progress from Game Center and turns it back into the app's values.
