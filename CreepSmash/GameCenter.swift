@@ -320,7 +320,9 @@ final class GameCenterSession: NSObject, GKMatchDelegate {
         self.match = match
         super.init()
         match.delegate = self
+        NetLog.log("gc match: \(match.players.count) other players, expecting \(match.expectedPlayerCount)")
     }
+    private var bytesIn = 0, messagesIn = 0, lastReport = Date()
 
     /// Call once the callbacks are set.
     func begin() { checkReady() }
@@ -333,6 +335,7 @@ final class GameCenterSession: NSObject, GKMatchDelegate {
             try? match.send(data, to: players, dataMode: .reliable)
         }
         self.link = link
+        NetLog.log("gc ready: me \(link.me.suffix(6)), host \(link.host.suffix(6)), peers \(link.peers.count)")
         onReady?(link)
         for (data, peer) in early { link.received(data, from: peer) }
         early = []
@@ -345,7 +348,13 @@ final class GameCenterSession: NSObject, GKMatchDelegate {
 
     nonisolated func match(_ match: GKMatch, didReceive data: Data, fromRemotePlayer player: GKPlayer) {
         guard let peer = GameCenter.object(player, "gamePlayerID") as? String else { return }
+        let size = data.count
         Task { @MainActor in
+            self.bytesIn += size; self.messagesIn += 1
+            if Date().timeIntervalSince(self.lastReport) >= 5 {
+                NetLog.log("gc in: \(self.messagesIn) messages, \(self.bytesIn) bytes in 5 s")
+                self.bytesIn = 0; self.messagesIn = 0; self.lastReport = Date()
+            }
             if let link = self.link { link.received(data, from: peer) } else { self.early.append((data, peer)) }
         }
     }
@@ -353,6 +362,7 @@ final class GameCenterSession: NSObject, GKMatchDelegate {
     nonisolated func match(_ match: GKMatch, player: GKPlayer, didChange state: GKPlayerConnectionState) {
         guard let peer = GameCenter.object(player, "gamePlayerID") as? String else { return }
         Task { @MainActor in
+            NetLog.log("gc player \(peer.suffix(6)) state \(state.rawValue)")
             switch state {
             case .connected:
                 self.checkReady()
@@ -365,7 +375,11 @@ final class GameCenterSession: NSObject, GKMatchDelegate {
     }
 
     nonisolated func match(_ match: GKMatch, didFailWithError error: Error?) {
-        Task { @MainActor in self.onFailure?(L("Connection lost")) }
+        let text = String(describing: error)
+        Task { @MainActor in
+            NetLog.log("gc failed: \(text)")
+            self.onFailure?(L("Connection lost"))
+        }
     }
 }
 

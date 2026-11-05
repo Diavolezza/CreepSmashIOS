@@ -368,7 +368,26 @@ final class GameController {
         effects.prune(now: timestamp)
     }
 
+    // Diagnostics of online games (NetLog, development builds only): per second the time spent waiting and
+    // how far ahead (+) or behind (−) the packets of the others are, in ticks of 50 ms.
+    @ObservationIgnored private var logSecond: CFTimeInterval = 0
+    @ObservationIgnored private var logWaited: CFTimeInterval = 0
+    @ObservationIgnored private var logLastFrame: CFTimeInterval?
+
+    private func logNetwork(waiting: Bool, now: CFTimeInterval) {
+        guard NetLog.enabled, let network else { return }
+        if waiting, let last = logLastFrame { logWaited += now - last }
+        logLastFrame = now
+        guard now - logSecond >= 1 else { return }
+        logSecond = now
+        let lead = network.receivedTicks.sorted { $0.key < $1.key }
+            .map { "p\($0.key) \($0.value - game.tick >= 0 ? "+" : "")\($0.value - game.tick)" }.joined(separator: " ")
+        NetLog.log("tick \(game.tick) waited \(Int(logWaited * 1000)) ms | \(lead) | host p\(network.hostPlayer) me p\(network.localPlayer)")
+        logWaited = 0
+    }
+
     private func noteWaiting(_ players: [Int], now: CFTimeInterval) {
+        logNetwork(waiting: !players.isEmpty, now: now)
         if players.isEmpty {
             waitingSince = nil
             if isWaitingForOpponent { isWaitingForOpponent = false }

@@ -444,6 +444,8 @@ public final class NetworkMatch: Match {
     /// The player whose device connects the others (0 until a handover).
     public private(set) var hostPlayer = 0
     public var isHost: Bool { localPlayer == hostPlayer }
+    /// Per remote person: the last tick whose packet has arrived (diagnostics: compared with `game.tick`).
+    public var receivedTicks: [Int: Int] { readyTick }
     public private(set) var status: Status = .running
     /// The role of this device during a handover (nil: no handover running).
     public private(set) var handover: Handover?

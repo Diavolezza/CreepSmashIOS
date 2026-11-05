@@ -332,7 +332,8 @@ for b in boards:
     d.text((C, C + 160), "1v" + str(b["n"]), font=ImageFont.truetype(str(ROOT / "CreepSmash/Fonts/PressStart2P-Regular.ttf"), 64), fill=c, anchor="mm")
     img.save(OUT / b["image"])
 # Challenges and the activity: 3840 × 2160, no transparency. The synthwave ground of the app's start screen
-# (horizon, perspective grid, stars), the stopwatch of the leaderboard large on it with "1v1" … "1v3".
+# (horizon, perspective grid, stars), the stopwatch of the leaderboard large on it with "1v1" … "1v3",
+# on the right (the Games app writes the title over the lower left).
 W, H = 3840, 2160
 GREEN = (61, 255, 126)
 
@@ -387,14 +388,16 @@ def big_stopwatch(cx, cy, r):
 big = ImageFont.truetype(str(ROOT / "CreepSmash/Fonts/PressStart2P-Regular.ttf"), 210)
 for ch in challenges:
     c = LEVEL[ch["level"]]
-    img = wide_glow(wide_ground(ch["id"]), big_stopwatch(W // 2, 860, 520), c, 34)
+    # The Games app writes the title over the lower left of the image: the stopwatch stays on the right.
+    cx = int(W * 0.74)
+    img = wide_glow(wide_ground(ch["id"]), big_stopwatch(cx, 860, 520), c, 34)
     d = ImageDraw.Draw(img)
-    d.text((W // 2, 1150), "1v" + str(ch["n"]), font=big, fill=c, anchor="mm")
+    d.text((cx, 1150), "1v" + str(ch["n"]), font=big, fill=c, anchor="mm")
     img.convert("RGB").save(OUT / ch["image"])
 
 # The activity: the three difficulties as three stopwatches side by side.
 img = wide_ground("activity")
 for k, (raw, _, _) in enumerate(levels):
-    img = wide_glow(img, big_stopwatch(W // 2 + (k - 1) * 1150, 900, 380), LEVEL[raw], 30)
+    img = wide_glow(img, big_stopwatch(int(W * 0.74) + (k - 1) * 620, 900, 280), LEVEL[raw], 26)
 img.convert("RGB").save(OUT / activity["image"])
 print(f"{len(rows) + len(boards) + len(challenges) + 1} images → {OUT.relative_to(ROOT)}")
