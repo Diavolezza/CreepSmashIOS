@@ -20,6 +20,7 @@ struct CreepSmashApp: App {
         }
         SoundManager.shared.prepareSession()
         MapThumbnails.preload()
+        NetLog.log("app start")
     }
 
     /// Navigation bar and segmented control in the retro fonts, in the small (iPhone) or large (iPad) size.

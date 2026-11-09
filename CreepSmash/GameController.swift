@@ -90,8 +90,13 @@ final class GameController {
         didSet {
             guard let network, let link = gameCenter?.link else { meshHandover = nil; return }
             meshHandover = MeshHandover(link: link, match: network)
+            if connectionCheck == nil { connectionCheck = ConnectionCheck() }
         }
     }
+    /// Game Center round: decides after a lost connection whether this device goes on (see `ConnectionCheck`).
+    @ObservationIgnored private var connectionCheck: ConnectionCheck?
+    /// The opponents are out because they lost the connection (texts of the events).
+    @ObservationIgnored private var opponentsLostConnection = false
     @ObservationIgnored private var meshHandover: MeshHandover?
     /// Online game cannot go on (the devices compute different results, or the host is gone).
     private(set) var connectionProblem: String?
@@ -151,6 +156,10 @@ final class GameController {
         network?.onHandover = { [weak self] role in
             MainActor.assumeIsolated { self?.handoverChanged(role) }
         }
+        network?.onLog = { text in NetLog.log(text) }
+        if let network {
+            NetLog.log("game start: me \(network.localPlayer), host \(network.hostPlayer), \(game.players.count) players")
+        }
     }
 
     /// Out of a game against the computer: the remaining computers are not played on in the background
@@ -163,6 +172,7 @@ final class GameController {
     /// and the game goes on after a countdown on both devices.
     func setPaused(_ paused: Bool) {
         if let network {
+            NetLog.log("pause \(paused ? "on" : "off") at tick \(game.tick)")
             if paused { network.pauseGame() } else { network.resumeGame() }
             syncNetworkPause()
             return
@@ -239,10 +249,18 @@ final class GameController {
         handoverFinder?.stop()
         handoverFinder = nil
         network?.leave()
-        gameCenter?.disconnect()
+        // The goodbye (surrender, leave) must still go out: Game Center drops unsent data on disconnect.
+        if let session = gameCenter {
+            gameCenter = nil
+            Task {
+                try? await Task.sleep(for: .seconds(2))
+                session.disconnect()
+            }
+        }
     }
 
     private func networkStatusChanged(_ status: NetworkMatch.Status) {
+        NetLog.log("status \(status) at tick \(game.tick)")
         switch status {
         case .running, .left:
             break
@@ -261,15 +279,41 @@ final class GameController {
             isWaitingForOpponent = false
             handoverNote = nil
             connectionProblem = L("The connection to the other players is lost. The round is over.")
+        case .connectionLost:
+            isPaused = false
+            netPause = nil
+            isWaitingForOpponent = false
+            handoverNote = nil
+            guard let check = connectionCheck else {
+                connectionProblem = L("The connection to your opponent is lost. Nobody wins, the round does not count.")
+                return
+            }
+            handoverNote = L("The connection to your opponent is lost. Checking whether your device is online …")
+            Task { [weak self] in
+                let online = await check.isOnline()
+                guard let self, let network = self.network, network.status == .connectionLost else { return }
+                NetLog.log("connection check: \(online ? "online – the opponents are out" : "offline – no result")")
+                self.handoverNote = nil
+                if online {
+                    self.opponentsLostConnection = true
+                    network.opponentsGone()
+                    self.opponentsLostConnection = false
+                } else {
+                    self.connectionProblem = L("The connection to your opponent is lost and your device was offline. Nobody wins, the round does not count.")
+                }
+            }
         case let .desynced(tick):
             connectionProblem = L("The devices compute differently (tick \(tick)). The game cannot continue.")
         }
     }
 
     private func networkEvent(_ event: NetworkMatch.Event) {
+        NetLog.log("event \(event) at tick \(game.tick)")
         switch event {
         case let .playerLeft(player):
-            let text = isGroup ? L("\(displayName(player)) has left the game") : L("Your opponent has left the game")
+            let text = opponentsLostConnection
+                ? (isGroup ? L("\(displayName(player)) has lost the connection") : L("Your opponent has lost the connection – you win"))
+                : (isGroup ? L("\(displayName(player)) has left the game") : L("Your opponent has left the game"))
             show(text)
             if !isGroup || alivePeople(besides: player) == 0 { endNote = text }
         case let .newHost(player):

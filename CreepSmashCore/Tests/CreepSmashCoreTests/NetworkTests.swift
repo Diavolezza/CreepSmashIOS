@@ -336,13 +336,74 @@ final class NetworkTests: XCTestCase {
         XCTAssertEqual(host.game.winner, 0)
     }
 
-    func testLostConnectionLetsTheOpponentWin() {
+    func testALostConnectionStopsTheGameUntilDecided() {
+        let net = FakeNetwork(latency: 2)
+        let devices = connect(net)
+        let (host, guest) = (devices[0], devices[1])
+        var events: [NetworkMatch.Event] = []
+        host.onEvent = { events.append($0) }
+        guest.onEvent = { events.append($0) }
+        run(net, devices, frames: 150)
+        link(guest, to: 0).cut()                    // without a goodbye: the network breaks, both learn it
+        run(net, devices, frames: 50)
+        // Otherwise each side would count the other one's surrender: two winners.
+        for device in devices {
+            XCTAssertEqual(device.status, .connectionLost)
+            XCTAssertFalse(device.game.isFinished)
+            XCTAssertNil(device.game.winner)
+        }
+        XCTAssertEqual(events, [])
+    }
+
+    func testTheDeviceThatIsStillOnlineWins() {
+        let net = FakeNetwork(latency: 2)
+        let devices = connect(net)
+        let (host, guest) = (devices[0], devices[1])
+        var events: [NetworkMatch.Event] = []
+        guest.onEvent = { events.append($0) }
+        run(net, devices, frames: 150)
+        link(guest, to: 0).cut()
+        run(net, devices, frames: 20)
+        // The guest is online, the host has lost the network: only the guest goes on.
+        guest.opponentsGone()
+        run(net, devices, frames: 50)
+        XCTAssertEqual(events, [.playerLeft(0)])
+        XCTAssertEqual(guest.status, .running)
+        XCTAssertEqual(guest.game.winner, 1)
+        XCTAssertEqual(host.status, .connectionLost)
+        XCTAssertNil(host.game.winner)
+    }
+
+    func testOnlineAgainstComputersTheGameGoesOnAfterALostConnection() {
+        let net = FakeNetwork(latency: 2)
+        let devices = connect(net, guests: ["Bert"], computers: [.easy])
+        let (host, guest) = (devices[0], devices[1])
+        run(net, devices, frames: 150)
+        link(devices[0], to: 1).close()
+        run(net, [guest], frames: 50)
+        XCTAssertEqual(guest.status, .connectionLost)
+        XCTAssertFalse(guest.game.players[0].isDead)
+        host.opponentsGone()                        // not lost: has no effect
+        XCTAssertEqual(host.status, .running)
+        guest.opponentsGone()
+        run(net, [guest], frames: 50)
+        XCTAssertEqual(guest.status, .running)
+        XCTAssertTrue(guest.game.players[0].isDead)
+        XCTAssertFalse(guest.game.isFinished, "the computer is still in")
+        XCTAssertGreaterThan(guest.game.tick, 200)
+    }
+
+    func testALostConnectionToAPlayerWhoIsOutChangesNothing() {
         let net = FakeNetwork(latency: 2)
         let devices = connect(net)
         let (host, guest) = (devices[0], devices[1])
         run(net, devices, frames: 150)
-        link(guest, to: 0).close()                  // without the guest sending anything
-        run(net, [host], frames: 50)
+        guest.issue(.surrender)
+        run(net, devices, frames: 30)
+        XCTAssertEqual(host.game.winner, 0)
+        link(guest, to: 0).close()
+        run(net, [host], frames: 20)
+        XCTAssertEqual(host.status, .running)
         XCTAssertEqual(host.game.winner, 0)
     }
 

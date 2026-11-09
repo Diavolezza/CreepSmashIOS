@@ -356,6 +356,16 @@ struct OptionsView: View {
                         .font(Theme.mono(15))
                         .foregroundStyle(.gray)
                 }
+                if NetLog.enabled, let url = NetLog.url {
+                    Section(L("Test version")) {
+                        ShareLink(item: url, subject: Text("CreepSmash log"),
+                                  message: Text(L("Network log of CreepSmash"))) {
+                            Label(L("Send log"), systemImage: "square.and.arrow.up")
+                        }
+                        Text(L("Records the connection during online games. Please send it after a test round."))
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
             }
             .font(Theme.mono(15))
             .scrollContentBackground(.hidden)

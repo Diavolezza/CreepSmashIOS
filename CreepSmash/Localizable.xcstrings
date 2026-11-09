@@ -72,6 +72,16 @@
         }
       }
     },
+    "%@ has lost the connection" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ hat die Verbindung verloren"
+          }
+        }
+      }
+    },
     "%@ has paused the game. If the game does not go on within %@, %@ is out." : {
       "localizations" : {
         "de" : {
@@ -1664,6 +1674,16 @@
         }
       }
     },
+    "Network log of CreepSmash" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Netzwerkprotokoll von CreepSmash"
+          }
+        }
+      }
+    },
     "Network not available (%@)" : {
       "localizations" : {
         "de" : {
@@ -2095,6 +2115,16 @@
         }
       }
     },
+    "Records the connection during online games. Please send it after a test round." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeichnet die Verbindung bei Online-Spielen auf. Bitte nach einer Testrunde senden."
+          }
+        }
+      }
+    },
     "Remake for iPhone and iPad" : {
       "localizations" : {
         "de" : {
@@ -2215,6 +2245,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Creeps an: %@"
+          }
+        }
+      }
+    },
+    "Send log" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Protokoll senden"
           }
         }
       }
@@ -2484,6 +2524,16 @@
         }
       }
     },
+    "Test version" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Testversion"
+          }
+        }
+      }
+    },
     "That didn't work" : {
       "localizations" : {
         "de" : {
@@ -2510,6 +2560,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Die Verbindung zu den anderen Spielern ist abgebrochen. Die Runde ist beendet."
+          }
+        }
+      }
+    },
+    "The connection to your opponent is lost and your device was offline. Nobody wins, the round does not count." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Verbindung zum Gegner ist abgebrochen, und dein Gerät war offline. Niemand gewinnt, die Runde zählt nicht."
+          }
+        }
+      }
+    },
+    "The connection to your opponent is lost. Checking whether your device is online …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Verbindung zum Gegner ist abgebrochen. Prüfe, ob dein Gerät online ist …"
+          }
+        }
+      }
+    },
+    "The connection to your opponent is lost. Nobody wins, the round does not count." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Verbindung zum Gegner ist abgebrochen. Niemand gewinnt, die Runde zählt nicht."
           }
         }
       }
@@ -2590,6 +2670,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Das andere Gerät hat eine andere App-Version"
+          }
+        }
+      }
+    },
+    "The other players could not be reached within 30 seconds. Please try again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die anderen Spieler waren in 30 Sekunden nicht erreichbar. Bitte versuche es noch einmal."
           }
         }
       }
@@ -3289,6 +3379,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Der Gegner hat das Spiel verlassen"
+          }
+        }
+      }
+    },
+    "Your opponent has lost the connection – you win" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Gegner hat die Verbindung verloren – du gewinnst"
           }
         }
       }

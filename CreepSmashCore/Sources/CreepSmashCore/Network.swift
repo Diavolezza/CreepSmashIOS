@@ -389,6 +389,11 @@ public final class NetworkMatch: Match {
         case pauseExpired
         /// The connection to the others is lost (the host is gone and no handover worked): the round is over here.
         case hostGone
+        /// The connection to the last other person still playing dropped without a goodbye (network, app
+        /// stopped). The game stands still until the app has decided: `opponentsGone()` if this device is
+        /// online (the others lost the network or stopped the app: they are out), otherwise the round ends
+        /// without a winner. An explicit `leave()` is a surrender instead.
+        case connectionLost
         /// The devices computed differently (bug in the simulation).
         case desynced(tick: Int)
     }
@@ -455,6 +460,8 @@ public final class NetworkMatch: Match {
     public var onEvent: ((Event) -> Void)?
     /// The handover role has changed (nil: the handover is over).
     public var onHandover: ((Handover?) -> Void)?
+    /// Diagnostics: connection events worth a line in the network log.
+    public var onLog: ((String) -> Void)?
     /// Interval between checksums in ticks.
     public var hashInterval = 20
 
@@ -607,7 +614,7 @@ public final class NetworkMatch: Match {
         if isHost {
             if paused >= Self.pauseLimit { expirePause(of: current.player) }
         } else if current.player == hostPlayer && paused >= Self.pauseLimit + 10 {
-            hostGone()                                      // the host does not answer any more
+            hostGone(explicit: false)                       // the host does not answer any more
         }
     }
 
@@ -715,7 +722,8 @@ public final class NetworkMatch: Match {
         case let .desynced(tick):
             setStatus(.desynced(tick: tick))
         case .leave:
-            if isHost { drop(link) } else { hostGone() }
+            onLog?("net: player \(link) left")
+            if isHost { drop(link, explicit: true) } else { hostGone(explicit: true) }
         case .hello, .lobby, .welcome, .reject, .resync, .resume:
             break
         }
@@ -735,7 +743,8 @@ public final class NetworkMatch: Match {
     }
 
     private func linkClosed(_ player: Int) {
-        if isHost { drop(player) } else { hostGone() }
+        onLog?("net: connection to player \(player) closed")
+        if isHost { drop(player, explicit: false) } else { hostGone(explicit: false) }
     }
 
     private func compareHash(_ tick: Int, with player: Int) {
@@ -745,7 +754,7 @@ public final class NetworkMatch: Match {
         if isHost && game.players[player].isDead {
             // A player who is out and only watches has fallen out of step (e.g. after a handover): only
             // this device leaves, the game is not affected.
-            return drop(player)
+            return drop(player, explicit: true)
         }
         if isHost { broadcast(.desynced(tick: tick)) }
         setStatus(.desynced(tick: tick))
@@ -827,9 +836,10 @@ public final class NetworkMatch: Match {
 
     // MARK: Players leaving
 
-    /// Host: a guest has left or lost the connection.
-    private func drop(_ player: Int) {
+    /// Host: a guest has left (`explicit`) or lost the connection.
+    private func drop(_ player: Int, explicit: Bool) {
         guard status == .running, !gone.contains(player) else { return }
+        if !explicit && isLastOpponent(player) { return lostConnection() }
         if let transport = links.removeValue(forKey: player) {
             transport.onReceive = nil
             transport.onClose = nil
@@ -860,8 +870,37 @@ public final class NetworkMatch: Match {
         onEvent?(.playerLeft(player))
     }
 
-    /// Guest: the connection to the host is gone (host left, crashed, or the network dropped).
-    private func hostGone() {
+    /// Whether `player` is the last other person still in the game: losing the connection to them leaves
+    /// nobody who could confirm a win.
+    private func isLastOpponent(_ player: Int) -> Bool {
+        guard !game.isFinished, !game.players[player].isDead else { return false }
+        return !remoteHumans.contains { $0 != player && !gone.contains($0) && !game.players[$0].isDead }
+    }
+
+    /// The connection to the last opponent dropped without a goodbye: the game stands still until the app
+    /// decides who is to blame (otherwise both sides would count the other one's surrender and both win).
+    private func lostConnection() {
+        pause = nil
+        closeLinks()
+        setStatus(.connectionLost)
+    }
+
+    /// After `connectionLost`, when this device is online: the others lost their network or stopped the app.
+    /// They give up; the game goes on here (to the end, or against the computers).
+    public func opponentsGone() {
+        guard status == .connectionLost, !game.isFinished else { return }
+        let others = remoteHumans.filter { !gone.contains($0) && !game.players[$0].isDead }
+        for player in others {
+            gone.insert(player)
+            let tick = max(game.tick, (readyTick[player] ?? 0) + 1)
+            game.schedule(ScheduledCommand(tick: tick, player: player, sequence: .max, command: .surrender))
+        }
+        setStatus(.running)
+        for player in others { onEvent?(.playerLeft(player)) }
+    }
+
+    /// Guest: the connection to the host is gone (host left – `explicit` –, crashed, or the network dropped).
+    private func hostGone(explicit: Bool) {
         guard status == .running, migration == nil else { return }
         closeLinks()
         let now = clock()
@@ -882,10 +921,12 @@ public final class NetworkMatch: Match {
             migration = Migration(oldHost: host, candidates: candidates, since: now)
             return nextHandoverRole()
         }
-        // Only the host was left besides us and the computers: the host gives up, the game goes on here.
+        // Only the host was left besides us and the computers.
         let hostPauseExpired = pause.map {
             $0.player == host && $0.resumesAt == nil && now.timeIntervalSince($0.since) >= Self.pauseLimit - 5
         } ?? false
+        // Lost without a goodbye: nobody wins. Otherwise the host gives up, the game goes on here.
+        if !explicit && !hostPauseExpired && !game.players[host].isDead { return lostConnection() }
         pause = nil
         gone.insert(host)
         if !game.players[host].isDead {

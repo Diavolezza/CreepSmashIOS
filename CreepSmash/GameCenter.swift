@@ -259,6 +259,7 @@ final class GameCenter: NSObject {
         request.playerGroup = NetMessage.protocolVersion
         guard let controller = GKMatchmakerViewController(matchRequest: request) else { return }
         controller.matchmakerDelegate = self
+        NetLog.log("gc matchmaker opened")
         Self.present(controller)
     }
 
@@ -275,11 +276,18 @@ final class GameCenter: NSObject {
 
 extension GameCenter: GKMatchmakerViewControllerDelegate, GKLocalPlayerListener, GKGameCenterControllerDelegate {
     nonisolated func matchmakerViewControllerWasCancelled(_ viewController: GKMatchmakerViewController) {
-        Task { @MainActor in viewController.dismiss(animated: true) }
+        Task { @MainActor in
+            NetLog.log("gc matchmaker cancelled")
+            viewController.dismiss(animated: true)
+        }
     }
 
     nonisolated func matchmakerViewController(_ viewController: GKMatchmakerViewController, didFailWithError error: Error) {
-        Task { @MainActor in viewController.dismiss(animated: true) }
+        let text = String(describing: error)
+        Task { @MainActor in
+            NetLog.log("gc matchmaker failed: \(text)")
+            viewController.dismiss(animated: true)
+        }
     }
 
     nonisolated func matchmakerViewController(_ viewController: GKMatchmakerViewController, didFind match: GKMatch) {
@@ -292,6 +300,7 @@ extension GameCenter: GKMatchmakerViewControllerDelegate, GKLocalPlayerListener,
     /// An invitation was accepted (in Game Center or a message): the matchmaker screen of that round.
     nonisolated func player(_ player: GKPlayer, didAccept invite: GKInvite) {
         Task { @MainActor in
+            NetLog.log("gc invite accepted")
             guard let controller = GKMatchmakerViewController(invite: invite) else { return }
             controller.matchmakerDelegate = self
             Self.present(controller)
@@ -324,8 +333,20 @@ final class GameCenterSession: NSObject, GKMatchDelegate {
     }
     private var bytesIn = 0, messagesIn = 0, lastReport = Date()
 
+    /// How long the players may take to connect before the attempt is given up.
+    static let connectTimeout: Duration = .seconds(30)
+    private var closed = false
+
     /// Call once the callbacks are set.
-    func begin() { checkReady() }
+    func begin() {
+        checkReady()
+        Task { [weak self] in
+            try? await Task.sleep(for: Self.connectTimeout)
+            guard let self, !self.closed, self.link == nil else { return }
+            NetLog.log("gc timeout: still expecting \(self.match.expectedPlayerCount)")
+            self.onFailure?(L("The other players could not be reached within 30 seconds. Please try again."))
+        }
+    }
 
     private func checkReady() {
         guard link == nil, match.expectedPlayerCount == 0 else { return }
@@ -342,6 +363,8 @@ final class GameCenterSession: NSObject, GKMatchDelegate {
     }
 
     func disconnect() {
+        closed = true
+        NetLog.log("gc disconnect")
         match.delegate = nil
         match.disconnect()
     }

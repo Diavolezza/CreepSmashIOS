@@ -45,7 +45,11 @@ struct GameScreen: View {
         .onAppear { controller.start() }
         .onDisappear { controller.stop() }
         .onChange(of: scenePhase) { _, phase in
-            if phase != .active, !isFinished { controller.setPaused(true) }
+            NetLog.log("scene \(phase)")
+            // Online only in the background: a brief "inactive" (notification, Control Center, Game Center
+            // banner) must not stop the others' game.
+            let away = controller.isOnline ? phase == .background : phase != .active
+            if away, !isFinished { controller.setPaused(true) }
         }
     }
 

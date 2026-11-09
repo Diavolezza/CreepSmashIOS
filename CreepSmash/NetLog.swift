@@ -1,8 +1,8 @@
 import Foundation
 
-/// Diagnostics of online games for development builds (compiled with the condition NETLOG): one line per
-/// event and per second of play in Documents/netlog.txt (taken off the iPhone with devicectl). Store builds
-/// write nothing.
+/// Diagnostics of online games for test builds (compiled with the condition NETLOG): one line per event and
+/// per second of play in Documents/netlog.txt. Testers send it with "Send log" in the options; on the
+/// developer's iPhone it is also taken off with devicectl. Store builds write nothing.
 enum NetLog {
     #if NETLOG
     static let enabled = true
@@ -10,13 +10,24 @@ enum NetLog {
     static let enabled = false
     #endif
 
+    /// Above this size the log starts over at the next launch.
+    private static let maxBytes: UInt64 = 4_000_000
+
+    static let url: URL? = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?
+        .appendingPathComponent("netlog.txt")
+
     nonisolated(unsafe) private static var start = Date()
     nonisolated(unsafe) private static var handle: FileHandle? = {
-        guard enabled, let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
-        let url = dir.appendingPathComponent("netlog.txt")
-        if !FileManager.default.fileExists(atPath: url.path) { FileManager.default.createFile(atPath: url.path, contents: nil) }
+        guard enabled, let url else { return nil }
+        let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? UInt64) ?? 0
+        if !FileManager.default.fileExists(atPath: url.path) || size > maxBytes {
+            FileManager.default.createFile(atPath: url.path, contents: nil)
+        }
         let h = try? FileHandle(forWritingTo: url)
         h?.seekToEndOfFile()
+        let info = Bundle.main.infoDictionary
+        let version = "\(info?["CFBundleShortVersionString"] ?? "?") (\(info?["CFBundleVersion"] ?? "?"))"
+        h?.write(Data("--- CreepSmash \(version), iOS \(ProcessInfo.processInfo.operatingSystemVersionString)\n".utf8))
         return h
     }()
 
