@@ -106,9 +106,9 @@ struct RootView: View {
         .onAppear {
             matchmaker.onMatch = { match, session in startOnline(match, gameCenter: session) }
             // A round found through Game Center: its lobby runs like one nearby.
-            GameCenter.shared.onMatch = { match in
+            GameCenter.shared.onMatch = { session in
                 withoutSliding { showMultiplayer = true }
-                matchmaker.gameCenter(GameCenterSession(match: match), name: networkName)
+                matchmaker.gameCenter(session, name: networkName)
             }
             // onAppear fires again after a language switch; launch arguments count only once.
             guard !handledLaunchArguments else { return }
@@ -198,7 +198,8 @@ struct RootView: View {
 
     private func startOnline(_ match: NetworkMatch, gameCenter: GameCenterSession? = nil) {
         withoutSliding { showMultiplayer = false }
-        controller?.stop()
+        // A game still on screen ends here (also its connection).
+        controller?.leave()
         let autopilot = ProcessInfo.processInfo.arguments.contains("-autopilot")
         let controller = GameController(match: match, mode: autopilot ? nil : .online)
         controller.gameCenter = gameCenter
@@ -206,6 +207,12 @@ struct RootView: View {
             controller.autopilot = Bot(player: match.localPlayer, level: .normal, map: match.game.map)
         }
         self.controller = controller
+        // Safety net: a page that should have closed can stay in front of the game (it opened while another
+        // one was closing) – the player sees the menu while the game runs behind it.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak controller] in
+            guard let controller, self.controller === controller else { return }
+            Self.closePagesAboveGame()
+        }
         // Tests of the pause in the Simulator: "-pauseAfter 15" pauses after 15 s, "-resumeAfter 10" goes on 10 s later.
         let args = ProcessInfo.processInfo.arguments
         func seconds(_ flag: String) -> Double? {
@@ -228,6 +235,17 @@ struct RootView: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + resumeAfter) { controller?.setPaused(false) }
                 }
             }
+        }
+    }
+
+    /// Closes whatever is still shown above the root view (the game has just started, it has opened nothing yet).
+    private static func closePagesAboveGame() {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        for window in scenes.flatMap(\.windows) where window.isKeyWindow {
+            guard let root = window.rootViewController, let page = root.presentedViewController,
+                  !page.isBeingDismissed else { continue }
+            NetLog.log("closing a page left above the game: \(type(of: page))")
+            root.dismiss(animated: false)
         }
     }
 

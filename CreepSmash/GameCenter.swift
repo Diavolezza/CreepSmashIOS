@@ -33,7 +33,8 @@ final class GameCenter: NSObject {
         var opponents: Int?
     }
     /// Called with a found match (from the matchmaker screen or an accepted invitation).
-    @ObservationIgnored var onMatch: ((GKMatch) -> Void)?
+    /// A round was found (own search or accepted invitation); called once Game Center's screen has closed.
+    @ObservationIgnored var onMatch: ((GameCenterSession) -> Void)?
 
     // MARK: Sign-in
 
@@ -292,8 +293,12 @@ extension GameCenter: GKMatchmakerViewControllerDelegate, GKLocalPlayerListener,
 
     nonisolated func matchmakerViewController(_ viewController: GKMatchmakerViewController, didFind match: GKMatch) {
         Task { @MainActor in
-            viewController.dismiss(animated: true)
-            self.onMatch?(match)
+            NetLog.log("gc matchmaker found a round")
+            // The session takes the round's messages from now on; the app's pages change only once Game
+            // Center's screen has closed (a page opened while another one closes can stay in front for good:
+            // the invited player saw the multiplayer page while the game ran behind it).
+            let session = GameCenterSession(match: match)
+            viewController.dismiss(animated: true) { self.onMatch?(session) }
         }
     }
 
@@ -336,9 +341,11 @@ final class GameCenterSession: NSObject, GKMatchDelegate {
     /// How long the players may take to connect before the attempt is given up.
     static let connectTimeout: Duration = .seconds(30)
     private var closed = false
+    private var begun = false
 
     /// Call once the callbacks are set.
     func begin() {
+        begun = true
         checkReady()
         Task { [weak self] in
             try? await Task.sleep(for: Self.connectTimeout)
@@ -349,7 +356,7 @@ final class GameCenterSession: NSObject, GKMatchDelegate {
     }
 
     private func checkReady() {
-        guard link == nil, match.expectedPlayerCount == 0 else { return }
+        guard begun, !closed, link == nil, match.expectedPlayerCount == 0 else { return }
         let match = self.match
         let link = MeshLink(me: GKLocalPlayer.local.gamePlayerID, peers: match.players.map(\.gamePlayerID)) { data, peers in
             let players = match.players.filter { peers.contains($0.gamePlayerID) }

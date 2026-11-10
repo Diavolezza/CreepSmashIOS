@@ -97,6 +97,8 @@ final class GameController {
     @ObservationIgnored private var connectionCheck: ConnectionCheck?
     /// The opponents are out because they lost the connection (texts of the events).
     @ObservationIgnored private var opponentsLostConnection = false
+    /// Who pauses the online game, as last written to the network log.
+    @ObservationIgnored private var loggedPauseBy: Int?
     @ObservationIgnored private var meshHandover: MeshHandover?
     /// Online game cannot go on (the devices compute different results, or the host is gone).
     private(set) var connectionProblem: String?
@@ -195,6 +197,11 @@ final class GameController {
         }
         if value != netPause { netPause = value }
         if isPaused != (value != nil) { isPaused = value != nil }
+        let pausedBy = network.pause?.player
+        if pausedBy != loggedPauseBy {
+            NetLog.log(pausedBy.map { "paused by p\($0) at tick \(game.tick)" } ?? "pause over at tick \(game.tick)")
+            loggedPauseBy = pausedBy
+        }
     }
 
     /// A game against the computer can be continued later; not demo games, not finished ones.
