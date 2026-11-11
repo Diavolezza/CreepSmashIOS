@@ -19,7 +19,7 @@ scenes=(
   "04|tower|9|-demo -opponents 1 -map mahlstrom -selectTower"
   "05|setup|5|-setup -map stromschnellen -opponents 3"
   "06|multiplayer|5|-multiplayer -sampleRounds"
-  "07|evaluation|6|-sampleProgress -report"
+  "07|evaluation|12|-sampleProgress -report"
   "08|achievements|6|-sampleProgress -records -recordsTab achievements"
 )
 
@@ -61,9 +61,9 @@ for kind in $devices; do
       locale=$([ "$lang" = de ] && echo de_DE || echo en_US)
       # shellcheck disable=SC2086
       xcrun simctl launch "$sim" "$BUNDLE" -musicEnabled NO -soundEnabled NO -language "$lang" -AppleLocale "$locale" \
-        -playerName Anna $args >/dev/null
+        -playerName Anna -hideVersion $args >/dev/null
       sleep "$wait"
-      xcrun simctl io "$sim" screenshot "${display[@]}" "$out/$num-$name.png" >/dev/null 2>&1 && echo "  ✓ $lang $num $name"
+      xcrun simctl io "$sim" screenshot ${display[@]+"${display[@]}"} "$out/$num-$name.png" >/dev/null 2>&1 && echo "  ✓ $lang $num $name"
     done
   done
   xcrun simctl terminate "$sim" "$BUNDLE" >/dev/null 2>&1

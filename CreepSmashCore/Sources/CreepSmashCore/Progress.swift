@@ -139,6 +139,12 @@ public struct GameSummary: Codable, Equatable, Sendable {
     public var towerValue: Int?
     /// Efficiency of the defense of every player, by player index (older records: nil).
     public var defense: [DefenseRecord]?
+    /// Ticks between two income payments in this game; the samples are taken per income round
+    /// (older records: nil, they were all played with 300 ticks).
+    public var incomeIntervalTicks: Int?
+
+    /// Length of an income round of this game in ticks.
+    public var incomeRoundTicks: Int { incomeIntervalTicks ?? 300 }
 
     /// The own defense record.
     public var myDefense: DefenseRecord? {
@@ -164,7 +170,8 @@ public struct GameSummary: Codable, Equatable, Sendable {
                 maxIncome: Int, creepsSent: Int, creepsKilled: Int, towersBuilt: Int, builtUltimate: Bool,
                 sentColossus: Bool, samples: [GameSample], date: Date, opponentName: String? = nil,
                 damageDealt: Int? = nil, healthSent: Int? = nil, playerNames: [String]? = nil, me: Int? = nil,
-                towerValue: Int? = nil, defense: [DefenseRecord]? = nil) {
+                towerValue: Int? = nil, defense: [DefenseRecord]? = nil, incomeIntervalTicks: Int? = nil) {
+        self.incomeIntervalTicks = incomeIntervalTicks
         self.mode = mode
         self.mapID = mapID
         self.won = won
@@ -294,7 +301,8 @@ public struct GameStats: Sendable {
                            healthSent: game.players[me].healthSent,
                            playerNames: playerNames ?? game.players.map(\.name), me: me,
                            towerValue: game.players[me].towerValue,
-                           defense: arrived.isEmpty ? nil : game.players.indices.map { defenseRecord(game, player: $0) })
+                           defense: arrived.isEmpty ? nil : game.players.indices.map { defenseRecord(game, player: $0) },
+                           incomeIntervalTicks: game.rules.incomeIntervalTicks)
     }
 
     /// Installed capacity of a defense: the damage all towers could deal in one income round if there were
@@ -384,8 +392,9 @@ public struct PlayerRecord: Codable, Equatable, Sendable {
     public var lastGame: GameSummary?
 
     public static let leaderboardSize = 10
-    /// A win in at most this many seconds of play counts as a fast win.
-    public static let fastWinSeconds = 8 * 60
+    /// A win in at most this many seconds of play counts as a fast win (8 minutes until income came every
+    /// 15 s; now 10 s, games about a third shorter).
+    public static let fastWinSeconds = 6 * 60
     /// A win counts as efficient when the defense stopped at least this much (per mille) of what arrived and
     /// was used at least this much (per mille of its capacity): the service delivered without idle capacity.
     public static let efficientStoppedPermille = 900

@@ -7,7 +7,7 @@ This document records what the Swift remake takes over and where it deliberately
 
 - 2 to 4 players, each with an own board showing the same map (the app: 2 to 4 over the network – people and computers mixed – and up to 4 against the computer).
 - Start: 20 lives, 500 credits (original: 200 – the opening was too slow), 200 credits income.
-- Every 15 seconds the income is added to the credits.
+- Every 10 seconds the income is added to the credits (original: 15 seconds; changed so that a game between equal opponents takes about 13 instead of 19 minutes).
 - Credits buy towers on your own board (defense) or send creeps to the next player's board (attack).
 - Every creep you send raises your income permanently.
 - A creep that reaches the end of the path costs the board owner one life and then continues on the board of the next living player – never on the sender's board. With 2 players it simply starts again on the opponent's board.
@@ -20,7 +20,7 @@ This document records what the Swift remake takes over and where it deliberately
 | Value | Original | Remake |
 |---|---|---|
 | Tick | 50 ms (20 ticks/s) | same |
-| Income interval | 300 ticks = 15 s | same |
+| Income interval | 300 ticks = 15 s | 200 ticks = 10 s (up to app 1.0.10: 300) |
 | Lead time before the game starts | 300 ticks (loading + countdown) | 100 ticks (5 s countdown), configurable |
 | First income | at game start | same |
 | Action until effect (build, upgrade, sell, strategy) | about 50 ticks (server delay during which the tower is "under construction" and does not shoot) | input delay (4 ticks) + 40 ticks build time, configurable |

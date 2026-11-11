@@ -5,8 +5,10 @@ public struct Rules: Codable, Equatable, Sendable {
     public var startLives = 20
     public var startCredits = 500
     public var startIncome = 200
-    /// Interval between income payments (original: 300 ticks = 15 s).
-    public var incomeIntervalTicks = 300
+    /// Interval between income payments: 200 ticks = 10 s (original and up to app version 1.0.10: 300 ticks =
+    /// 15 s; games between equal opponents took about 19 minutes, now about 13). Saved games and online rounds
+    /// carry their rules, so older ones go on with 15 s.
+    public var incomeIntervalTicks = 200
     /// The game runs from this tick on; before that there is a countdown. The first income payment happens at the start.
     public var startTick = 100
     /// Delay between input and execution (lockstep).

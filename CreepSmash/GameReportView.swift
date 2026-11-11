@@ -369,7 +369,7 @@ private struct CapacityChart: View {
             // The last round can be shorter than a full one: capacity only for the time it lasted.
             let ticks = samples[i].tick - samples[i - 1].tick
             return Round(minute: minute(samples[i]),
-                         capacity: (before.capacity ?? 0) * ticks / Rules.standard.incomeIntervalTicks,
+                         capacity: (before.capacity ?? 0) * ticks / max(1, summary.incomeRoundTicks),
                          attack: max(0, (now.arrived ?? 0) - (before.arrived ?? 0)),
                          livesLost: max(0, before.lives - now.lives))
         }
@@ -463,7 +463,8 @@ private struct CapacityChart: View {
     }
 
     private var caption: String {
-        var text = L("Per income round (15 s). Capacity: what your towers could shoot away if creeps passed them all the time. The gap to the attack is defense standing idle; red dots show where it was not enough.")
+        let seconds = summary.incomeRoundTicks * Rules.standard.tickMilliseconds / 1000
+        var text = L("Per income round (\(seconds) s). Capacity: what your towers could shoot away if creeps passed them all the time. The gap to the attack is defense standing idle; red dots show where it was not enough.")
         if let defense = summary.myDefense, defense.zombieTowers > 0 {
             text += " " + L("Zombie towers at the end: \(defense.zombieTowers), together \(Format.credits(defense.zombieValue)) credits.")
         }

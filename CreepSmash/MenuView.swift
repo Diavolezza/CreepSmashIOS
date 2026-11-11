@@ -100,7 +100,8 @@ struct MenuView: View {
         // A game asked for from the Games app or a challenge (also one that came during a game: when it ends).
         .onChange(of: GameCenter.shared.requestedSetup) { openRequestedSetup() }
         .overlay(alignment: .bottomTrailing) {
-            Text("v" + AppVersion.text)
+            // Store screenshots ("-hideVersion") would otherwise show an old version number.
+            Text(ProcessInfo.processInfo.arguments.contains("-hideVersion") ? "" : "v" + AppVersion.text)
                 .font(Theme.mono(12))
                 .foregroundStyle(Theme.dimGreen)
                 .padding(.trailing, Theme.s(16))
@@ -336,7 +337,7 @@ struct RulesView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.s(14)) {
                     section(L("Goal"), L("Each player has 20 lives. The last player with lives left wins."))
-                    section(L("Money"), L("You start with 500 credits. Every 15 seconds your income is added to your credits (200 at the start)."))
+                    section(L("Money"), L("You start with 500 credits. Every 10 seconds your income is added to your credits (200 at the start)."))
                     section(L("Attack"), L("Send creeps to your opponent's board. Every creep you send raises your income for good. If a creep reaches the end of the path, your opponent loses a life – and the creep starts again from the beginning."))
                     section(L("Defend"), L("Build towers next to the path. Creeps you shoot down pay a bounty. Towers can be upgraded and sold for 75 % of their price. Building and upgrading take 2 seconds."))
                     section(L("Maps"), L("Some maps have special sections. On fast lanes (yellow arrows, one per multiple of the speed) creeps run two to four times as fast. Through portals they jump across the board. Where a path runs laps, crosses itself or turns back at a dead end, towers there get the creeps more than once."))

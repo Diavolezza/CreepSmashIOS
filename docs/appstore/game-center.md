@@ -77,8 +77,8 @@ description are the same (the requirement).
 | `cs.flawless.1` | 10 | Flawless I | Win a game without losing a life | Makellos I | Gewinne ein Spiel, ohne ein Leben zu verlieren | flawless-1.png |
 | `cs.flawless.2` | 25 | Flawless II | Win 10 games without losing a life | Makellos II | Gewinne 10 Spiele, ohne ein Leben zu verlieren | flawless-2.png |
 | `cs.closeCall.1` | 25 | Close call | Win with only one life left | Knapp war's | Gewinne mit nur noch einem Leben | closeCall-1.png |
-| `cs.fastWin.1` | 10 | Lightning win I | Win a game within 8 minutes | Blitzsieg I | Gewinne ein Spiel in höchstens 8 Minuten | fastWin-1.png |
-| `cs.fastWin.2` | 25 | Lightning win II | Win 10 games within 8 minutes | Blitzsieg II | Gewinne 10 Spiele in höchstens 8 Minuten | fastWin-2.png |
+| `cs.fastWin.1` | 10 | Lightning win I | Win a game within 6 minutes | Blitzsieg I | Gewinne ein Spiel in höchstens 6 Minuten | fastWin-1.png |
+| `cs.fastWin.2` | 25 | Lightning win II | Win 10 games within 6 minutes | Blitzsieg II | Gewinne 10 Spiele in höchstens 6 Minuten | fastWin-2.png |
 | `cs.efficient.1` | 10 | Efficient I | Win a game stopping at least 90 % with a utilization of at least 40 % | Effizient I | Gewinne ein Spiel mit mindestens 90 % Abwehrquote und mindestens 40 % Auslastung | efficient-1.png |
 | `cs.efficient.2` | 25 | Efficient II | Win 10 games stopping at least 90 % with a utilization of at least 40 % | Effizient II | Gewinne 10 Spiele mit mindestens 90 % Abwehrquote und mindestens 40 % Auslastung | efficient-2.png |
 | `cs.lean.1` | 10 | Lean I | Win a game with a smaller defense share than every opponent | Schlank I | Gewinne ein Spiel mit kleinerem Abwehranteil als jeder Gegner | lean-1.png |

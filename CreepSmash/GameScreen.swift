@@ -393,6 +393,13 @@ struct GameScreen: View {
     private var pausePanel: some View {
         VStack(spacing: Theme.s(14)) {
                 Text(L("Pause")).font(Theme.pixel(28)).foregroundStyle(Theme.green)
+                if controller.canSave {
+                    // A game against the computer need not be played in one go (a tester did not know).
+                    Text(L("Your game is saved. With “Continue later” you can close the app and go on from the menu."))
+                        .font(Theme.mono(14)).foregroundStyle(Theme.text)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: Theme.s(440))
+                }
                 if let pause = controller.netPause {
                     let time = String(format: "%d:%02d", pause.secondsLeft / 60, pause.secondsLeft % 60)
                     Text(pauseText(pause, time: time))
