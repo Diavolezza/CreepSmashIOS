@@ -49,9 +49,9 @@ chooses 1, 3 or unlimited tries). Default image 3840 × 2160.
 | `cs.challenge.hard.2` | `cs.fastest.hard.2` | Race · Hard · 2 opponents | Who beats 2 computers on Hard the fastest? | Wettlauf · Schwer · 2 Gegner | Wer schlägt 2 Computer auf Schwer am schnellsten? | challenge-hard-2.png |
 | `cs.challenge.hard.3` | `cs.fastest.hard.3` | Race · Hard · 3 opponents | Who beats 3 computers on Hard the fastest? | Wettlauf · Schwer · 3 Gegner | Wer schlägt 3 Computer auf Schwer am schnellsten? | challenge-hard-3.png |
 
-## Activity (1)
+## Activities (2)
 
-Opens a game against the computer from the Games app or from a challenge. 1 player, no party code.
+`cs.activity.computer` opens a game against the computer from the Games app or from a challenge. 1 player, no party code.
 Fallback URL (systems before iOS 26): https://diavolezza.github.io/creepsmash/support.html. Every leaderboard links to it with the
 properties `level` (easy, normal, hard) and `opponents` (1–3); the app opens the setup page with them.
 Image 3840 × 2160.
@@ -59,6 +59,10 @@ Image 3840 × 2160.
 | ID | Name (en) | Description (en) | Name (de) | Description (de) | Image |
 |---|---|---|---|---|---|
 | `cs.activity.computer` | Vs. computer | Beat one to three computers as fast as you can. | Gegen Computer | Schlag einen bis drei Computer, so schnell du kannst. | activity-computer.png |
+| `cs.activity.online` | Online round | Two to four people in one round – share its code with your friends. | Online-Runde | Zwei bis vier Leute in einer Runde – teile ihren Code mit deinen Freunden. | activity-online.png |
+
+`cs.activity.online` (from version 1.1): online rounds with a code – 2 to 4 players, party code. The creator of the
+code opens the round in the app; the others enter the code there (or follow the party link).
 
 ## Achievements (39, 940 points of max. 1000)
 

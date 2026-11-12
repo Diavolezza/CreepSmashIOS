@@ -29,7 +29,7 @@ public final class LocalMatch: Match {
             Bot(player: $0.offset + 1, level: $0.element, map: map, style: styles[$0.offset])
         }
         sequences = Array(repeating: 0, count: names.count)
-        record = SavedGame(version: NetMessage.protocolVersion, mapID: map.id, rules: rules, playerName: playerName,
+        record = SavedGame(version: NetMessage.simulationVersion, mapID: map.id, rules: rules, playerName: playerName,
                            opponents: opponents, opponentNames: opponentNames, seed: seed)
     }
 

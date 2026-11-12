@@ -132,6 +132,16 @@
         }
       }
     },
+    "%@ wants a rematch" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ will Revanche"
+          }
+        }
+      }
+    },
     "%@, %lld credits" : {
       "localizations" : {
         "de" : {
@@ -513,6 +523,16 @@
         }
       }
     },
+    "Build towers" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Türme bauen"
+          }
+        }
+      }
+    },
     "Build towers next to the path. Creeps you shoot down pay a bounty. Towers can be upgraded and sold for 75 % of their price. Building and upgrading take 2 seconds." : {
       "localizations" : {
         "de" : {
@@ -615,6 +635,16 @@
         }
       }
     },
+    "Codes for online rounds need iOS 26 or later on every device." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codes für Online-Runden brauchen iOS 26 oder neuer auf allen Geräten."
+          }
+        }
+      }
+    },
     "Colossal" : {
       "localizations" : {
         "de" : {
@@ -711,6 +741,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bedienung"
+          }
+        }
+      }
+    },
+    "Create a code and send it to the others, or enter the code someone sent you." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erzeuge einen Code und schick ihn den anderen, oder gib den Code ein, den du bekommen hast."
+          }
+        }
+      }
+    },
+    "Create code" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Code erzeugen"
           }
         }
       }
@@ -996,6 +1046,26 @@
         }
       }
     },
+    "Every creep you send raises your income for good. Every 10 seconds the income is added to your credits – so attacking also pays for your towers." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jeder Creep, den du schickst, erhöht dein Einkommen dauerhaft. Alle 10 Sekunden kommt das Einkommen zu deinem Guthaben – Angreifen bezahlt also auch deine Türme."
+          }
+        }
+      }
+    },
+    "Every player has 20 lives. A creep that reaches the end of your path costs you one. The last player with lives left wins." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jeder Spieler hat 20 Leben. Ein Creep, der das Ende deines Wegs erreicht, kostet dich eines. Wer als Letzter noch Leben hat, gewinnt."
+          }
+        }
+      }
+    },
     "Exterminator" : {
       "localizations" : {
         "de" : {
@@ -1086,6 +1156,16 @@
         }
       }
     },
+    "Find opponents" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gegner suchen"
+          }
+        }
+      }
+    },
     "Fires every" : {
       "localizations" : {
         "de" : {
@@ -1152,6 +1232,66 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Game Center ist gerade nicht erreichbar. Deine Bestzeiten auf diesem Gerät:"
+          }
+        }
+      }
+    },
+    "Game Center could not create a code right now. Please try again later." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Game Center konnte gerade keinen Code erzeugen. Bitte versuch es später noch einmal."
+          }
+        }
+      }
+    },
+    "Game Center could not open the round of this code. Please check the code." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Game Center konnte die Runde zu diesem Code nicht öffnen. Bitte prüf den Code."
+          }
+        }
+      }
+    },
+    "Game Center found no round. Please try again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Game Center hat keine Runde gefunden. Bitte versuch es noch einmal."
+          }
+        }
+      }
+    },
+    "Game Center is looking for more players. The round starts in %lld s; free seats are taken by computers." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Game Center sucht weitere Mitspieler. Die Runde startet in %lld s; freie Plätze übernehmen Computer."
+          }
+        }
+      }
+    },
+    "Game Center is looking for players …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Game Center sucht Mitspieler …"
+          }
+        }
+      }
+    },
+    "Game Center looks for up to three players. After 30 seconds the round starts with everyone found; free seats are taken by computers, the map is drawn at random." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Game Center sucht bis zu drei Mitspieler. Nach 30 Sekunden geht es mit allen Gefundenen los; freie Plätze übernehmen Computer, die Karte wird ausgelost."
           }
         }
       }
@@ -1362,6 +1502,26 @@
         }
       }
     },
+    "Invite" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einladen"
+          }
+        }
+      }
+    },
+    "Invite friends" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Freunde einladen"
+          }
+        }
+      }
+    },
     "Join" : {
       "localizations" : {
         "de" : {
@@ -1378,6 +1538,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mit Code beitreten"
+          }
+        }
+      }
+    },
+    "Join with a Game Center code" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit Game-Center-Code beitreten"
           }
         }
       }
@@ -1428,6 +1598,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Verlassen"
+          }
+        }
+      }
+    },
+    "Let's go" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los geht's"
           }
         }
       }
@@ -1518,6 +1698,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Suche Spiel %@ …"
+          }
+        }
+      }
+    },
+    "Looking for round %@ …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suche Runde %@ …"
           }
         }
       }
@@ -1617,6 +1807,16 @@
         }
       }
     },
+    "More players can still join with it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Damit können noch weitere Mitspieler dazukommen."
+          }
+        }
+      }
+    },
     "Multiplayer" : {
       "localizations" : {
         "de" : {
@@ -1663,6 +1863,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nah"
+          }
+        }
+      }
+    },
+    "Nearby" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In der Nähe"
           }
         }
       }
@@ -1734,6 +1944,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nächster"
+          }
+        }
+      }
+    },
+    "Next page" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weiter"
           }
         }
       }
@@ -1824,6 +2044,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Siegesserie"
+          }
+        }
+      }
+    },
+    "Online" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Online"
+          }
+        }
+      }
+    },
+    "Online rounds run through Game Center. Sign in to Game Center in the Settings app; then the three ways to play online appear here." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Online-Runden laufen über Game Center. Melde dich in der App „Einstellungen“ bei Game Center an; dann erscheinen hier die drei Wege, online zu spielen."
           }
         }
       }
@@ -1949,6 +2189,16 @@
         }
       }
     },
+    "Pick a tower on the left and tap a free cell next to the path. Towers shoot the creeps on your board. Tap a tower to upgrade or sell it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle links einen Turm und tippe auf ein freies Feld neben dem Weg. Türme schießen auf die Creeps auf deinem Feld. Tippe einen Turm an, um ihn aufzurüsten oder zu verkaufen."
+          }
+        }
+      }
+    },
     "Place %lld in your best times (%@)" : {
       "localizations" : {
         "de" : {
@@ -2058,6 +2308,16 @@
         }
       }
     },
+    "Random opponents" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zufällige Gegner"
+          }
+        }
+      }
+    },
     "Range" : {
       "localizations" : {
         "de" : {
@@ -2135,6 +2395,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Neuauflage für iPhone und iPad"
+          }
+        }
+      }
+    },
+    "Rematch" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revanche"
           }
         }
       }
@@ -2233,6 +2503,16 @@
         }
       }
     },
+    "Send creeps" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creeps schicken"
+          }
+        }
+      }
+    },
     "Send creeps to your opponent's board. Every creep you send raises your income for good. If a creep reaches the end of the path, your opponent loses a life – and the creep starts again from the beginning." : {
       "localizations" : {
         "de" : {
@@ -2253,6 +2533,16 @@
         }
       }
     },
+    "Send it to the others; they enter it under „Online“ › „Share a code“." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schick ihn den anderen; sie geben ihn unter „Online“ › „Code teilen“ ein."
+          }
+        }
+      }
+    },
     "Send log" : {
       "localizations" : {
         "de" : {
@@ -2263,12 +2553,42 @@
         }
       }
     },
+    "Share a code" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Code teilen"
+          }
+        }
+      }
+    },
+    "Share code" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Code teilen"
+          }
+        }
+      }
+    },
     "Shoot down %@ creeps" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Schieße %@ Creeps ab"
+          }
+        }
+      }
+    },
+    "Short introduction" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kurzanleitung"
           }
         }
       }
@@ -2303,12 +2623,32 @@
         }
       }
     },
+    "Skip" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Überspringen"
+          }
+        }
+      }
+    },
     "slow" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "langsam"
+          }
+        }
+      }
+    },
+    "Slow connection – the game may stall now and then" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Langsame Verbindung – das Spiel kann kurz hängen"
           }
         }
       }
@@ -2448,6 +2788,16 @@
         }
       }
     },
+    "Start now" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jetzt starten"
+          }
+        }
+      }
+    },
     "Statistics" : {
       "localizations" : {
         "de" : {
@@ -2504,6 +2854,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Betreuung: Prof. Dr.-Ing. Gerhard Wanner"
+          }
+        }
+      }
+    },
+    "Tap a creep on the right to send it to your opponent. Hold it to keep sending until you let go." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tippe rechts auf einen Creep, um ihn deinem Gegner zu schicken. Halte ihn gedrückt, dann geht einer nach dem anderen los, bis du loslässt."
           }
         }
       }
@@ -2694,6 +3054,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Die anderen warten. Machst du nicht innerhalb von %@ weiter, scheidest du aus."
+          }
+        }
+      }
+    },
+    "The others have left." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die anderen sind gegangen."
           }
         }
       }
@@ -3034,6 +3404,26 @@
         }
       }
     },
+    "Waiting for players …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warte auf Mitspieler …"
+          }
+        }
+      }
+    },
+    "Waiting for the others …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warte auf die anderen …"
+          }
+        }
+      }
+    },
     "Weak" : {
       "localizations" : {
         "de" : {
@@ -3307,6 +3697,16 @@
         }
       }
     },
+    "You choose the map; before the start you can give free seats to computers." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du wählst die Karte; vor dem Start kannst du freie Plätze an Computer geben."
+          }
+        }
+      }
+    },
     "You start with 500 credits. Every 10 seconds your income is added to your credits (200 at the start)." : {
       "localizations" : {
         "de" : {
@@ -3353,6 +3753,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Über dein Gerät laufen jetzt die Verbindungen"
+          }
+        }
+      }
+    },
+    "Your friends are here. Give free seats to computers if you like, then start." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Freunde sind da. Gib freie Plätze nach Wunsch an Computer und starte."
           }
         }
       }

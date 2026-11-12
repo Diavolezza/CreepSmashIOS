@@ -110,6 +110,12 @@ struct RootView: View {
                 withoutSliding { showMultiplayer = true }
                 matchmaker.gameCenter(session, name: networkName)
             }
+            // Game Center looks for players (random opponents, a code): the multiplayer page shows it.
+            GameCenter.shared.onSearching = { kind in
+                withoutSliding { showMultiplayer = true }
+                matchmaker.searchingOnline(kind)
+            }
+            GameCenter.shared.onSearchFailed = { message in matchmaker.onlineFailed(message) }
             // onAppear fires again after a language switch; launch arguments count only once.
             guard !handledLaunchArguments else { return }
             handledLaunchArguments = true
@@ -181,7 +187,10 @@ struct RootView: View {
         let controller = GameController(match: match, mode: demo ? nil : mode)
         if demo {
             controller.autopilot = Bot(player: match.localPlayer, level: .normal, map: map)
-            controller.fastForward(ticks: 3_600)
+            // "-demoFromStart": no fast-forward, the game starts at tick 0 (energy measurement, comparable to an online game).
+            if !ProcessInfo.processInfo.arguments.contains("-demoFromStart") {
+                controller.fastForward(ticks: 3_600)
+            }
             // "-placing": show the build preview of the slow tower over a cell (screenshots).
             if ProcessInfo.processInfo.arguments.contains("-placing") {
                 controller.selection = .placing(.slow)
@@ -201,8 +210,15 @@ struct RootView: View {
         // A game still on screen ends here (also its connection).
         controller?.leave()
         let autopilot = ProcessInfo.processInfo.arguments.contains("-autopilot")
+        // Energy measurements: "-bundleTicks N" sends a bundle every N ticks instead of the default.
+        let launch = ProcessInfo.processInfo.arguments
+        if let i = launch.firstIndex(of: "-bundleTicks"), i + 1 < launch.count, let n = Int(launch[i + 1]) {
+            match.bundleTicks = n
+        }
         let controller = GameController(match: match, mode: autopilot ? nil : .online)
         controller.gameCenter = gameCenter
+        // Rematch: the new game replaces this one on the same connections.
+        controller.onRematch = { next, session in startOnline(next, gameCenter: session) }
         if autopilot {
             controller.autopilot = Bot(player: match.localPlayer, level: .normal, map: match.game.map)
         }

@@ -249,19 +249,167 @@ final class GameCenter: NSObject {
 
     // MARK: Online games
 
-    /// Game Center's matchmaker screen: invite friends or play with anyone looking for 2 to 4 players.
-    func findMatch() {
-        guard isAuthenticated else { return }
+    /// The search for random opponents or the round of a code has started (cancel with `cancelSearch()`).
+    @ObservationIgnored var onSearching: ((OnlineKind) -> Void)?
+    /// The search failed; the message for the player.
+    @ObservationIgnored var onSearchFailed: ((String) -> Void)?
+
+    /// Kind of the round whose Game Center screen is open (invitation sent or accepted).
+    @ObservationIgnored private var screenKind: OnlineKind?
+    /// The request of a running search (random opponents, code): more players are added with it until the start.
+    @ObservationIgnored private var searchRequest: GKMatchRequest?
+    /// The Game Center activity of a code round (iOS 26); ends with the round.
+    @ObservationIgnored private var partyActivity: AnyObject?
+
+    /// How long Game Center may look for more players after the first opponent was found.
+    static let searchTime: TimeInterval = 30
+
+    private static func request() -> GKMatchRequest {
         let request = GKMatchRequest()
         request.minPlayers = 2
         request.maxPlayers = 4
         request.defaultNumberOfPlayers = 2
         // Only devices with the same protocol version are matched (as nearby).
         request.playerGroup = NetMessage.protocolVersion
-        guard let controller = GKMatchmakerViewController(matchRequest: request) else { return }
+        return request
+    }
+
+    /// Invite friends: Game Center's screen for invitations only, up to three friends. The inviter opens the
+    /// round with the chosen map and can give free seats to computers before the start.
+    func inviteFriends(mapID: String) {
+        guard isAuthenticated, let controller = GKMatchmakerViewController(matchRequest: Self.request()) else { return }
+        cancelSearch()
+        screenKind = .invite(mapID: mapID)
+        controller.matchmakingMode = .inviteOnly
         controller.matchmakerDelegate = self
-        NetLog.log("gc matchmaker opened")
+        NetLog.log("gc invite screen opened")
         Self.present(controller)
+    }
+
+    /// Random opponents: Game Center looks for players; once one is found, the device that opens the round
+    /// lets it look for more until `searchTime` is up (see `addPlayers(to:)`).
+    func findRandomOpponents() {
+        guard isAuthenticated else { return }
+        cancelSearch()
+        let request = Self.request()
+        searchRequest = request
+        onSearching?(.random)
+        NetLog.log("gc search for random opponents")
+        let search = ObjectIdentifier(request)
+        GKMatchmaker.shared().findMatch(for: request) { match, error in
+            let text = error.map { String(describing: $0) }
+            Task { @MainActor in self.found(match, error: text, search: search, kind: .random) }
+        }
+    }
+
+    /// Share a code: a Game Center activity with a party code (iOS 26). The creator opens the round with `mapID`.
+    func createPartyCode(mapID: String) {
+        guard isAuthenticated else { return }
+        guard #available(iOS 26.0, *) else { return }
+        cancelSearch()
+        Task { @MainActor in
+            do {
+                let definition = try await Self.onlineActivity()
+                let activity = try GKGameActivity.start(definition: definition)
+                guard let code = activity.partyCode else { throw CocoaError(.featureUnsupported) }
+                NetLog.log("gc party code created")
+                self.findMatch(of: activity, kind: .party(code: code, mapID: mapID))
+            } catch {
+                NetLog.log("gc party code failed: \(error)")
+                self.onSearchFailed?(L("Game Center could not create a code right now. Please try again later."))
+            }
+        }
+    }
+
+    /// Joins the round of a Game Center party code (iOS 26).
+    func joinPartyCode(_ code: String) {
+        guard isAuthenticated, Self.isValidPartyCode(code) else { return }
+        guard #available(iOS 26.0, *) else { return }
+        cancelSearch()
+        Task { @MainActor in
+            do {
+                let definition = try await Self.onlineActivity()
+                let activity = try GKGameActivity.start(definition: definition, partyCode: code)
+                NetLog.log("gc party code joined")
+                self.findMatch(of: activity, kind: .party(code: code, mapID: nil))
+            } catch {
+                NetLog.log("gc party code join failed: \(error)")
+                self.onSearchFailed?(L("Game Center could not open the round of this code. Please check the code."))
+            }
+        }
+    }
+
+    /// The activity for online rounds with a code (App Store Connect: `cs.activity.online`, party code, 2–4 players).
+    static let onlineActivityID = "cs.activity.online"
+
+    @available(iOS 26.0, *)
+    private static func onlineActivity() async throws -> GKGameActivityDefinition {
+        let all = try await GKGameActivityDefinition.all
+        guard let definition = all.first(where: { $0.identifier == onlineActivityID }) else {
+            throw CocoaError(.featureUnsupported)
+        }
+        return definition
+    }
+
+    @available(iOS 26.0, *)
+    private func findMatch(of activity: GKGameActivity, kind: OnlineKind) {
+        partyActivity = activity
+        let request = activity.makeMatchRequest() ?? Self.request()
+        request.playerGroup = NetMessage.protocolVersion
+        searchRequest = request
+        let search = ObjectIdentifier(request)
+        onSearching?(kind)
+        activity.findMatch { match, error in
+            let text = error.map { String(describing: $0) }
+            Task { @MainActor in self.found(match, error: text, search: search, kind: kind) }
+        }
+    }
+
+    private func found(_ match: GKMatch?, error: String?, search: ObjectIdentifier, kind: OnlineKind) {
+        // Cancelled meanwhile: the match is not wanted any more.
+        guard let request = searchRequest, ObjectIdentifier(request) == search else { match?.disconnect(); return }
+        guard let match else {
+            NetLog.log("gc search failed: \(error ?? "?")")
+            searchRequest = nil
+            onSearchFailed?(L("Game Center found no round. Please try again."))
+            return
+        }
+        NetLog.log("gc search found a round with \(match.players.count) others")
+        onMatch?(GameCenterSession(match: match, kind: kind))
+    }
+
+    /// The device that opened a random round or a code round: Game Center looks for more players for it
+    /// (until the start; they join the lobby).
+    func addPlayers(to session: GameCenterSession) {
+        guard let request = searchRequest, session.match.players.count < 3 else { return }
+        GKMatchmaker.shared().addPlayers(to: session.match, matchRequest: request) { error in
+            if let error { NetLog.log("gc add players: \(error)") }
+        }
+    }
+
+    /// Stops looking for players (cancel, or the round starts).
+    func cancelSearch(_ session: GameCenterSession? = nil) {
+        if let session, searchRequest != nil { GKMatchmaker.shared().finishMatchmaking(for: session.match) }
+        if searchRequest != nil { GKMatchmaker.shared().cancel() }
+        searchRequest = nil
+    }
+
+    /// The round is over (or was left): ends the Game Center activity of a code round.
+    func endOnlineRound() {
+        cancelSearch()
+        if #available(iOS 26.0, *), let activity = partyActivity as? GKGameActivity { activity.end() }
+        partyActivity = nil
+    }
+
+    /// A party code as it is typed: upper case, only letters, digits and the dash, at most 13 characters.
+    static func normalizePartyCode(_ input: String) -> String {
+        String(input.uppercased().filter { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }.prefix(13))
+    }
+
+    /// Two parts of the same length (2 to 6) joined by a dash – Game Center decides (iOS 26 and later).
+    static func isValidPartyCode(_ code: String) -> Bool {
+        if #available(iOS 26.0, *) { return GKGameActivity.isValidPartyCode(code) }
+        return false
     }
 
     // MARK: Presenting
@@ -297,7 +445,8 @@ extension GameCenter: GKMatchmakerViewControllerDelegate, GKLocalPlayerListener,
             // The session takes the round's messages from now on; the app's pages change only once Game
             // Center's screen has closed (a page opened while another one closes can stay in front for good:
             // the invited player saw the multiplayer page while the game ran behind it).
-            let session = GameCenterSession(match: match)
+            let session = GameCenterSession(match: match, kind: self.screenKind ?? .invite(mapID: nil))
+            self.screenKind = nil
             viewController.dismiss(animated: true) { self.onMatch?(session) }
         }
     }
@@ -307,6 +456,8 @@ extension GameCenter: GKMatchmakerViewControllerDelegate, GKLocalPlayerListener,
         Task { @MainActor in
             NetLog.log("gc invite accepted")
             guard let controller = GKMatchmakerViewController(invite: invite) else { return }
+            self.cancelSearch()
+            self.screenKind = .invite(mapID: nil)
             controller.matchmakerDelegate = self
             Self.present(controller)
         }
@@ -317,21 +468,60 @@ extension GameCenter: GKMatchmakerViewControllerDelegate, GKLocalPlayerListener,
     }
 }
 
-/// One online round through Game Center: waits until all players are connected, then turns the match into a
-/// `MeshLink` (the lobby, the game and a handover run over it as nearby).
+/// What kind of online round a Game Center match is.
+enum OnlineKind: Equatable {
+    /// Friends invited through Game Center; `mapID`: the inviter's choice (nil on the invited devices).
+    case invite(mapID: String?)
+    /// Random opponents; the map is drawn at random, free seats get computers.
+    case random
+    /// A Game Center party code; `mapID`: the creator's choice (nil on the joining devices).
+    case party(code: String, mapID: String?)
+
+    /// This device opens the round: the inviter, the creator of the code.
+    var opensRound: Bool {
+        switch self {
+        case let .invite(mapID): mapID != nil
+        case .random: false
+        case let .party(_, mapID): mapID != nil
+        }
+    }
+
+    /// The map this device chose for the round it opens.
+    var mapID: String? {
+        switch self {
+        case let .invite(mapID): mapID
+        case .random: nil
+        case let .party(_, mapID): mapID
+        }
+    }
+
+    var partyCode: String? {
+        if case let .party(code, _) = self { code } else { nil }
+    }
+}
+
+/// One online round through Game Center: waits until all players are connected and it is clear which device
+/// opens the round (`MeshLink.claimHost`), then hands over the match as a `MeshLink` (lobby, game and handover
+/// run over it as nearby). Players found later join the link (`onPeerAdded`).
 @MainActor
 final class GameCenterSession: NSObject, GKMatchDelegate {
     let match: GKMatch
+    let kind: OnlineKind
     private(set) var link: MeshLink?
-    /// All players are connected: set up the lobby on this link (before further messages are delivered).
+    /// All players are connected and the host is known: set up the lobby on this link (before further messages
+    /// are delivered).
     var onReady: ((MeshLink) -> Void)?
+    /// Another player joined after `onReady` (more players found): its device, already in the link.
+    var onPeerAdded: ((MeshLink.Peer) -> Void)?
     /// A player dropped out before the round started, or Game Center failed.
     var onFailure: ((String) -> Void)?
-    /// Messages that arrived before the link was ready.
+    /// Messages that arrived before the link was set up.
     private var early: [(Data, MeshLink.Peer)] = []
+    private var ready = false
 
-    init(match: GKMatch) {
+    init(match: GKMatch, kind: OnlineKind) {
         self.match = match
+        self.kind = kind
         super.init()
         match.delegate = self
         NetLog.log("gc match: \(match.players.count) other players, expecting \(match.expectedPlayerCount)")
@@ -346,16 +536,21 @@ final class GameCenterSession: NSObject, GKMatchDelegate {
     /// Call once the callbacks are set.
     func begin() {
         begun = true
-        checkReady()
+        checkConnected()
         Task { [weak self] in
             try? await Task.sleep(for: Self.connectTimeout)
-            guard let self, !self.closed, self.link == nil else { return }
+            guard let self, !self.closed, !self.ready else { return }
             NetLog.log("gc timeout: still expecting \(self.match.expectedPlayerCount)")
             self.onFailure?(L("The other players could not be reached within 30 seconds. Please try again."))
         }
     }
 
-    private func checkReady() {
+    /// The device that opened the round keeps it when more players join later.
+    func keepRound() {
+        link?.claimHost(true)
+    }
+
+    private func checkConnected() {
         guard begun, !closed, link == nil, match.expectedPlayerCount == 0 else { return }
         let match = self.match
         let link = MeshLink(me: GKLocalPlayer.local.gamePlayerID, peers: match.players.map(\.gamePlayerID)) { data, peers in
@@ -363,10 +558,18 @@ final class GameCenterSession: NSObject, GKMatchDelegate {
             try? match.send(data, to: players, dataMode: .reliable)
         }
         self.link = link
-        NetLog.log("gc ready: me \(link.me.suffix(6)), host \(link.host.suffix(6)), peers \(link.peers.count)")
-        onReady?(link)
+        link.onChange = { [weak self] in self?.checkElected() }
         for (data, peer) in early { link.received(data, from: peer) }
         early = []
+        link.claimHost(kind.opensRound)
+        checkElected()
+    }
+
+    private func checkElected() {
+        guard !ready, !closed, let link, let host = link.electedHost else { return }
+        ready = true
+        NetLog.log("gc ready: me \(link.me.suffix(6)), host \(host.suffix(6)), peers \(link.peers.count)")
+        onReady?(link)
     }
 
     func disconnect() {
@@ -395,7 +598,14 @@ final class GameCenterSession: NSObject, GKMatchDelegate {
             NetLog.log("gc player \(peer.suffix(6)) state \(state.rawValue)")
             switch state {
             case .connected:
-                self.checkReady()
+                if let link = self.link {
+                    // Found later (random opponents, code): joins the round's link and lobby.
+                    guard !link.peers.contains(peer) else { return }
+                    link.add(peer: peer)
+                    if self.ready { self.onPeerAdded?(peer) }
+                } else {
+                    self.checkConnected()
+                }
             case .disconnected:
                 if let link = self.link { link.disconnected(peer) } else { self.onFailure?(L("Connection lost")) }
             default:

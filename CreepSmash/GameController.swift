@@ -93,6 +93,14 @@ final class GameController {
             if connectionCheck == nil { connectionCheck = ConnectionCheck() }
         }
     }
+    /// After the end of an online game: whether a rematch is possible and who wants one.
+    struct Rematch: Equatable {
+        var possible = false
+        var votes: Set<Int> = []
+    }
+    private(set) var rematch = Rematch()
+    /// The rematch starts: the new game and the Game Center session that carries it.
+    @ObservationIgnored var onRematch: ((NetworkMatch, GameCenterSession?) -> Void)?
     /// Game Center round: decides after a lost connection whether this device goes on (see `ConnectionCheck`).
     @ObservationIgnored private var connectionCheck: ConnectionCheck?
     /// The opponents are out because they lost the connection (texts of the events).
@@ -102,6 +110,14 @@ final class GameController {
     @ObservationIgnored private var meshHandover: MeshHandover?
     /// Online game cannot go on (the devices compute different results, or the host is gone).
     private(set) var connectionProblem: String?
+    /// Online: the connection is slow – the game stalled noticeably in the last seconds, or the round trip is
+    /// longer than the input delay can cover. Shown as a hint; goes away after 10 s without problems.
+    private(set) var weakConnection = false
+    @ObservationIgnored private var weakSecond: CFTimeInterval = 0
+    @ObservationIgnored private var weakWaited: CFTimeInterval = 0
+    @ObservationIgnored private var weakLastFrame: CFTimeInterval?
+    @ObservationIgnored private var weakHistory: [CFTimeInterval] = []
+    @ObservationIgnored private var weakLastSeen: CFTimeInterval = -.infinity
     private(set) var toast: Toast? = nil
     @ObservationIgnored private var waitingSince: CFTimeInterval?
 
@@ -159,6 +175,12 @@ final class GameController {
             MainActor.assumeIsolated { self?.handoverChanged(role) }
         }
         network?.onLog = { text in NetLog.log(text) }
+        network?.onRematchVotes = { [weak self] in
+            MainActor.assumeIsolated { self?.refreshRematch() }
+        }
+        network?.onRematch = { [weak self] next in
+            MainActor.assumeIsolated { self?.rematchStarts(next) }
+        }
         if let network {
             NetLog.log("game start: me \(network.localPlayer), host \(network.hostPlayer), \(game.players.count) players")
         }
@@ -259,6 +281,7 @@ final class GameController {
         // The goodbye (surrender, leave) must still go out: Game Center drops unsent data on disconnect.
         if let session = gameCenter {
             gameCenter = nil
+            GameCenter.shared.endOnlineRound()
             Task {
                 try? await Task.sleep(for: .seconds(2))
                 session.disconnect()
@@ -314,8 +337,29 @@ final class GameController {
         }
     }
 
+    /// The own wish for a rematch (after the end of an online game).
+    func requestRematch() {
+        network?.requestRematch()
+        refreshRematch()
+    }
+
+    private func refreshRematch() {
+        guard let network else { return }
+        let now = Rematch(possible: network.canRematch, votes: network.rematchVotes)
+        if now != rematch { rematch = now }
+    }
+
+    /// Everybody wanted the rematch: the connections (and the Game Center session) go on in the new game.
+    private func rematchStarts(_ next: NetworkMatch) {
+        NetLog.log("rematch: \(next.setup.names.count) players, me \(next.localPlayer)")
+        let session = gameCenter
+        gameCenter = nil
+        onRematch?(next, session)
+    }
+
     private func networkEvent(_ event: NetworkMatch.Event) {
         NetLog.log("event \(event) at tick \(game.tick)")
+        defer { refreshRematch() }
         switch event {
         case let .playerLeft(player):
             let text = opponentsLostConnection
@@ -424,6 +468,7 @@ final class GameController {
     @ObservationIgnored private var logSecond: CFTimeInterval = 0
     @ObservationIgnored private var logWaited: CFTimeInterval = 0
     @ObservationIgnored private var logLastFrame: CFTimeInterval?
+    @ObservationIgnored private var logTraffic = (messages: 0, bytes: 0)
 
     private func logNetwork(waiting: Bool, now: CFTimeInterval) {
         guard NetLog.enabled, let network else { return }
@@ -433,12 +478,32 @@ final class GameController {
         logSecond = now
         let lead = network.receivedTicks.sorted { $0.key < $1.key }
             .map { "p\($0.key) \($0.value - game.tick >= 0 ? "+" : "")\($0.value - game.tick)" }.joined(separator: " ")
-        NetLog.log("tick \(game.tick) waited \(Int(logWaited * 1000)) ms | \(lead) | host p\(network.hostPlayer) me p\(network.localPlayer)")
+        let rtt = network.roundTripMilliseconds.map { "\($0) ms" } ?? "?"
+        let out = network.messagesSent - logTraffic.messages, bytes = network.bytesSent - logTraffic.bytes
+        logTraffic = (network.messagesSent, network.bytesSent)
+        NetLog.log("tick \(game.tick) waited \(Int(logWaited * 1000)) ms | \(lead) | host p\(network.hostPlayer) me p\(network.localPlayer)"
+                   + " | rtt \(rtt) delay \(network.inputDelay) | out \(out) msg \(bytes) B")
         logWaited = 0
+    }
+
+    /// Thresholds of the hint: waited 0.3 s within 5 s (the game stalls), or a round trip of more than 600 ms.
+    private func noteConnection(waiting: Bool, now: CFTimeInterval) {
+        if waiting, let last = weakLastFrame { weakWaited += min(0.25, now - last) }
+        weakLastFrame = now
+        guard now - weakSecond >= 1 else { return }
+        weakSecond = now
+        weakHistory = Array((weakHistory + [weakWaited]).suffix(5))
+        weakWaited = 0
+        let stalls = weakHistory.reduce(0, +) >= 0.3
+        let slow = (network?.roundTripMilliseconds ?? 0) > 600
+        if stalls || slow { weakLastSeen = now }
+        let weak = now - weakLastSeen < 10
+        if weak != weakConnection { weakConnection = weak }
     }
 
     private func noteWaiting(_ players: [Int], now: CFTimeInterval) {
         logNetwork(waiting: !players.isEmpty, now: now)
+        noteConnection(waiting: !players.isEmpty, now: now)
         if players.isEmpty {
             waitingSince = nil
             if isWaitingForOpponent { isWaitingForOpponent = false }
@@ -495,6 +560,7 @@ final class GameController {
         var h = HUD()
         let board = game.players[me]
         h.tick = game.tick
+        if game.isFinished { refreshRematch() }
         if game.isFinished || board.isDead {
             h.phase = .finished(rank: board.rank)
         } else if !game.isStarted {

@@ -148,9 +148,12 @@ OSA
   (cd CreepSmashCore && swift test 2>&1 | grep -E "error|failed|Executed .* tests" | tail -3)
   normalize_strings
   echo "▸ building the app for the simulator"
+  # "… netlog" (e.g. "duo netlog"): with the network log (NETLOG), copied to build/ after duo.
+  local flags=()
+  [[ "$extra" == *netlog* ]] && flags=('SWIFT_ACTIVE_COMPILATION_CONDITIONS=$(inherited) NETLOG')
   if ! xcodebuild -project CreepSmash.xcodeproj -scheme CreepSmash \
       -configuration Debug -destination 'generic/platform=iOS Simulator' \
-      -derivedDataPath "$DERIVED" -quiet build; then
+      -derivedDataPath "$DERIVED" -quiet build ${flags[@]+"${flags[@]}"}; then
     echo "** BUILD FAILED **"
     return 1
   fi
@@ -189,7 +192,7 @@ OSA
         echo "✓ Both simulators show the menu – use \"Mehrspieler\" on both"
       else
         code=$(LC_ALL=C tr -dc 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' </dev/urandom | head -c5)
-        xcrun simctl launch "$a" de.wanner-it.creepsmash.game -host "$code"
+        xcrun simctl launch "$a" de.wanner-it.creepsmash.game -host "$code" -startWhen 2
         sleep 3
         # The guest is called "Autopilot", so it is obvious which simulator is yours.
         xcrun simctl launch "$b" de.wanner-it.creepsmash.game -join "$code" -autopilot -playerName Autopilot -musicEnabled NO
@@ -205,15 +208,24 @@ OSA
     else
       code=$(LC_ALL=C tr -dc 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' </dev/urandom | head -c5)
       echo "▸ Code $code"
+      # A round with a code waits in the lobby until the host starts it: -startWhen 2 starts it when the guest is in.
       # "duo solo": the host does nothing, only the guest plays (to check whose towers end up where).
       local host_auto="-autopilot"; [[ "$extra" == *solo* ]] && host_auto=""
-      xcrun simctl launch "$a" de.wanner-it.creepsmash.game -host "$code" $host_auto -musicEnabled NO
+      xcrun simctl launch "$a" de.wanner-it.creepsmash.game -host "$code" -startWhen 2 $host_auto -musicEnabled NO
       sleep 3
       xcrun simctl launch "$b" de.wanner-it.creepsmash.game -join "$code" -autopilot -musicEnabled NO
     fi
     sleep "${DUO_SECONDS:-45}"
     xcrun simctl io "$a" screenshot build/duo-host.png >/dev/null 2>&1 && echo "✓ screenshot: build/duo-host.png"
     xcrun simctl io "$b" screenshot build/duo-guest.png >/dev/null 2>&1 && echo "✓ screenshot: build/duo-guest.png"
+    if [[ "$extra" == *netlog* ]]; then
+      local side sim
+      for side in host guest; do
+        [ "$side" = host ] && sim=$a || sim=$b
+        cp "$(xcrun simctl get_app_container "$sim" de.wanner-it.creepsmash.game data)/Documents/netlog.txt" \
+          "build/duo-$side-netlog.txt" 2>/dev/null && echo "✓ network log: build/duo-$side-netlog.txt"
+      done
+    fi
     echo "▸ crash reports of the last 2 minutes:"
     find ~/Library/Logs/DiagnosticReports -mmin -2 -type f 2>/dev/null | sed 's|.*/||' | head
     xcrun simctl terminate "$a" de.wanner-it.creepsmash.game >/dev/null 2>&1 || true

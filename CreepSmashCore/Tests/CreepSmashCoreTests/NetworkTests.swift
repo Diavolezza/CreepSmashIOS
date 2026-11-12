@@ -654,6 +654,7 @@ final class NetworkTests: XCTestCase {
         devices[2].onEvent = { events.append($0) }
         run(net, devices, frames: 150)
         devices[0].leave()
+        let tick = devices[1].game.tick
         let others = Array(devices.dropFirst())
         run(net, others, hub: hub, wait: wait, frames: 150)
         XCTAssertEqual(events, [.playerLeft(0), .newHost(1)])
@@ -663,7 +664,7 @@ final class NetworkTests: XCTestCase {
             XCTAssertNil(device.handover)
             XCTAssertTrue(device.game.players[0].isDead)
         }
-        XCTAssertGreaterThan(devices[1].game.tick, 250, "the game goes on")
+        XCTAssertGreaterThan(devices[1].game.tick, tick + 80, "the game goes on")
         assertSameGame(others, net: net)
         // The new host also forwards: a command of Cleo reaches Bert.
         devices[2].issue(.sendCreeps(type: .mercury, count: 1))
@@ -693,9 +694,9 @@ final class NetworkTests: XCTestCase {
         }
         play(devices, frames: 300)
         // Dora's connection to the host fails silently a little before the host crashes: she misses the last
-        // packets of the host and of the others; the others have them.
+        // packets of the host and of the others; the others have them. (Longer than the input delay.)
         link(devices[0], to: 3).muted = true
-        play(devices, frames: 6)
+        play(devices, frames: 40)
         for player in 1...3 { link(devices[0], to: player).close() }
         let others = Array(devices.dropFirst())
         play(others, frames: 6)                     // the last packets arrive, the handover starts
@@ -760,6 +761,177 @@ final class NetworkTests: XCTestCase {
         XCTAssertEqual(devices[0].status, .running)
         XCTAssertEqual(devices[1].status, .running)
         XCTAssertEqual(events, [.playerLeft(2)])
+    }
+
+    // MARK: Rematch
+
+    /// Plays the game to its end (autopilots, one life each).
+    private func finish(_ net: FakeNetwork, _ devices: [NetworkMatch]) {
+        var pilots = devices.map { Bot(player: $0.localPlayer, level: .hard, map: $0.game.map) }
+        for _ in 0..<200_000 where !devices.allSatisfy(\.game.isFinished) {
+            net.now += 1
+            net.deliver()
+            for (i, d) in devices.enumerated() {
+                for c in pilots[i].think(game: d.game) { d.issue(c) }
+                d.advance()
+            }
+        }
+        XCTAssertTrue(devices.allSatisfy(\.game.isFinished))
+    }
+
+    private func oneLife() -> Rules {
+        var rules = Rules.standard
+        rules.startLives = 1
+        return rules
+    }
+
+    func testARematchStartsWhenEverybodyWantsIt() {
+        let net = FakeNetwork(latency: 2)
+        let devices = connect(net, guests: ["Bert"], computers: [.easy], rules: oneLife())
+        finish(net, devices)
+        var next: [Int: NetworkMatch] = [:]
+        for (i, d) in devices.enumerated() { d.onRematch = { next[i] = $0 } }
+        XCTAssertTrue(devices.allSatisfy(\.canRematch))
+        devices[1].requestRematch()
+        settle(net)
+        XCTAssertTrue(next.isEmpty, "the host has not agreed yet")
+        XCTAssertEqual(devices[0].rematchVotes, [1])
+        devices[0].requestRematch()
+        settle(net)
+        XCTAssertEqual(next.count, 2)
+        let (host, guest) = (next[0]!, next[1]!)
+        XCTAssertEqual(host.setup.mapID, devices[0].setup.mapID)
+        XCTAssertEqual(host.setup.names, ["Anna", "Bert", "CPU1"])
+        XCTAssertEqual(guest.localPlayer, 1)
+        XCTAssertNotEqual(host.setup.seed, devices[0].setup.seed)
+        run(net, [host, guest], frames: 300)
+        XCTAssertGreaterThan(host.game.tick, 200)
+        assertSameGame([host, guest], net: net)
+    }
+
+    func testARematchGoesOnWithoutThePlayerWhoLeft() {
+        let net = FakeNetwork(latency: 2)
+        let devices = connect(net, guests: ["Bert", "Cleo"], rules: oneLife())
+        finish(net, devices)
+        var next: [Int: NetworkMatch] = [:]
+        for (i, d) in devices.enumerated() { d.onRematch = { next[i] = $0 } }
+        devices[1].leave()                                  // Bert goes back to the menu
+        settle(net)
+        devices[2].requestRematch()
+        devices[0].requestRematch()
+        settle(net)
+        XCTAssertNil(next[1])
+        let (host, cleo) = (next[0]!, next[2]!)
+        XCTAssertEqual(host.setup.names, ["Anna", "Cleo"])
+        XCTAssertEqual(cleo.localPlayer, 1)
+        run(net, [host, cleo], frames: 200)
+        assertSameGame([host, cleo], net: net)
+    }
+
+    func testNoRematchAlone() {
+        let net = FakeNetwork(latency: 2)
+        let devices = connect(net, guests: ["Bert"], rules: oneLife())
+        finish(net, devices)
+        devices[1].leave()
+        settle(net)
+        XCTAssertFalse(devices[0].canRematch)
+    }
+
+    // MARK: Bundles and input delay (protocol 8)
+
+    /// Runs two devices for `frames` frames, one tick and 50 ms per frame; counts the frames the host waited.
+    private func ticking(_ net: FakeNetwork, _ devices: [NetworkMatch], frames: Int,
+                         wait: (TimeInterval) -> Void) -> Int {
+        var waits = 0
+        for _ in 0..<frames {
+            net.now += 1
+            net.deliver()
+            wait(0.05)
+            for (i, m) in devices.enumerated() where !m.advance() && i == 0 && !m.game.isFinished { waits += 1 }
+        }
+        return waits
+    }
+
+    func testABundleIsSentEveryFewTicks() {
+        let net = FakeNetwork(latency: 2)
+        let devices = connect(net)
+        let wait = clocked(devices)
+        _ = ticking(net, devices, frames: 100, wait: wait)
+        let (sent, tick) = (net.messagesSent, devices[0].game.tick)
+        _ = ticking(net, devices, frames: 400, wait: wait)
+        let perTick = Double(net.messagesSent - sent) / Double(devices[0].game.tick - tick) / 2
+        XCTAssertEqual(perTick, 1 / Double(NetworkMatch.defaultBundleTicks), accuracy: 0.02, "one bundle every few ticks per direction")
+        assertSameGame(devices, net: net)
+    }
+
+    func testAnEmptyBundleIsSmall() {
+        let data = NetMessage.inputs(NetBundle(player: 3, upTo: 18_000)).encoded()
+        XCTAssertLessThan(data.count, 40, String(decoding: data, as: UTF8.self))
+        XCTAssertEqual(NetMessage.decode(data), .inputs(NetBundle(player: 3, upTo: 18_000)))
+    }
+
+    func testTheInputDelayFollowsTheRoundTripAndNobodyWaits() {
+        // 2 frames of 50 ms each way: a round trip of 100–200 ms, depending on when in the frame it is measured.
+        let net = FakeNetwork(latency: 2)
+        let devices = connect(net)
+        let wait = clocked(devices)
+        _ = ticking(net, devices, frames: 300, wait: wait)
+        for device in devices {
+            let rtt = device.roundTripMilliseconds ?? 0
+            XCTAssertTrue((80...230).contains(rtt), "round trip \(rtt) ms")
+            XCTAssertEqual(device.inputDelay, NetworkMatch.defaultBundleTicks + 2 + (rtt / 2 + 49) / 50, "two people: half the round trip")
+        }
+        XCTAssertEqual(ticking(net, devices, frames: 300, wait: wait), 0, "with the measured delay nobody waits")
+        // Commands are executed after the delay on both devices.
+        devices[1].issue(.sendCreeps(type: .mercury, count: 1))
+        _ = ticking(net, devices, frames: 60, wait: wait)
+        for device in devices {
+            XCTAssertEqual(device.game.players[1].income, Rules.standard.startIncome + CreepType.mercury.stats.income)
+        }
+        assertSameGame(devices, net: net)
+    }
+
+    func testABadConnectionDoesNotMakeTheGameSluggish() {
+        // A round trip of 0.8 s: the delay stays at 400 ms, the game waits now and then instead.
+        let net = FakeNetwork(latency: 9)
+        let devices = connect(net)
+        let wait = clocked(devices)
+        _ = ticking(net, devices, frames: 300, wait: wait)
+        XCTAssertGreaterThan(devices[0].roundTripMilliseconds ?? 0, 700)
+        XCTAssertEqual(devices[0].inputDelay, NetworkMatch.maxInputDelay)
+        _ = ticking(net, devices, frames: 300, wait: wait)
+        assertSameGame(devices, net: net)
+    }
+
+    func testAShortRoundTripKeepsTheDelaySmall() {
+        let net = FakeNetwork(latency: 1)
+        let devices = connect(net)
+        let wait = clocked(devices)
+        _ = ticking(net, devices, frames: 300, wait: wait)
+        XCTAssertLessThanOrEqual(devices[0].inputDelay, NetworkMatch.defaultBundleTicks + 4)
+        XCTAssertEqual(ticking(net, devices, frames: 200, wait: wait), 0)
+    }
+
+    func testImplausibleBundlesAreIgnored() {
+        let net = FakeNetwork(latency: 1)
+        let devices = connect(net)
+        let wait = clocked(devices)
+        _ = ticking(net, devices, frames: 200, wait: wait)
+        let host = devices[0]
+        let ready = host.receivedTicks[1]!
+        let roundTrip = host.roundTripMilliseconds
+        // From a broken or hostile device: a bundle far into the future and a round trip of minus a year.
+        let fake = link(devices[1], to: 0)
+        fake.send(NetMessage.inputs(NetBundle(player: 1, upTo: ready + 100_000)).encoded())
+        fake.send(NetMessage.inputs(NetBundle(player: 1, upTo: ready, pongs: [0: Int.max])).encoded())
+        fake.send(NetMessage.inputs(NetBundle(player: 2, upTo: ready + 1)).encoded())
+        net.now += 2
+        net.deliver()
+        XCTAssertLessThan(host.receivedTicks[1]!, ready + 1000)
+        XCTAssertEqual(host.roundTripMilliseconds, roundTrip)
+        XCTAssertEqual(host.status, .running)
+        _ = ticking(net, devices, frames: 100, wait: wait)
+        assertSameGame(devices, net: net)
     }
 }
 

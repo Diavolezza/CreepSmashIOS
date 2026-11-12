@@ -4,7 +4,8 @@ import Foundation
 /// point-to-point connections (`Transport`) the lobby, the game and the handover work with.
 ///
 /// Every message carries a small header: the channel (0: lobby and game, 1: handover) and its kind (data,
-/// closed, or the announcement which player index a device has in the game). The first message on a
+/// closed, the announcement which player index a device has in the game, or whether a device wants to open
+/// the round). The first message on a
 /// channel from a device without a transport there reports a new connection (`onIncoming`), as an accepted
 /// connection would.
 ///
@@ -16,7 +17,7 @@ public final class MeshLink {
     public static let gameChannel: UInt8 = 0
     public static let handoverChannel: UInt8 = 1
 
-    fileprivate enum Kind: UInt8 { case data = 0, closed = 1, announce = 2 }
+    fileprivate enum Kind: UInt8 { case data = 0, closed = 1, announce = 2, claim = 3 }
 
     public let me: Peer
     /// The other devices still in the round.
@@ -27,8 +28,14 @@ public final class MeshLink {
     /// arrives right after this call).
     public var onIncoming: ((Peer, UInt8, Transport) -> Void)?
 
+    /// Who-opens-the-round has changed: another device said whether it wants to, or devices came or went.
+    public var onChange: (() -> Void)?
+
     private let sendRaw: (Data, [Peer]) -> Void
     private var links: [Key: Link] = [:]
+    /// Whether the other devices want to open the round (`claimHost`), as far as they have said it.
+    private var claims: [Peer: Bool] = [:]
+    private var ownClaim: Bool?
     fileprivate struct Key: Hashable { let peer: Peer, channel: UInt8 }
 
     /// - Parameter send: sends a message to the given devices (reliable, in order).
@@ -38,9 +45,31 @@ public final class MeshLink {
         self.sendRaw = send
     }
 
-    /// The device that connects the others at the start: the one with the smallest ID, so every device
-    /// comes to the same result without a message.
+    /// The device with the smallest ID: every device comes to the same result without a message.
     public var host: Peer { (peers + [me]).min()! }
+
+    /// Tells all devices whether this device wants to open the round (the inviter, the creator of a code, or
+    /// the device that already opened it when more devices join later). Can be said again.
+    public func claimHost(_ wants: Bool) {
+        ownClaim = wants
+        sendRaw(Data([0, Kind.claim.rawValue, wants ? 1 : 0]), peers)
+    }
+
+    /// The device that opens the round, once every device has said whether it wants to (`claimHost`): one
+    /// that wants to (several: the smallest ID), otherwise the smallest ID. nil while answers are missing.
+    public var electedHost: Peer? {
+        guard let ownClaim, peers.allSatisfy({ claims[$0] != nil }) else { return nil }
+        let wanting = peers.filter { claims[$0] == true } + (ownClaim ? [me] : [])
+        return wanting.min() ?? host
+    }
+
+    /// Another device joined the round after the start (more players found): it learns this device's claim.
+    public func add(peer: Peer) {
+        guard peer != me, !peers.contains(peer) else { return }
+        peers.append(peer)
+        if let ownClaim { sendRaw(Data([0, Kind.claim.rawValue, ownClaim ? 1 : 0]), [peer]) }
+        onChange?()
+    }
 
     /// The connection to `peer` on `channel` (the same object as long as it is open).
     public func transport(to peer: Peer, channel: UInt8 = MeshLink.gameChannel) -> Transport {
@@ -75,6 +104,11 @@ public final class MeshLink {
             guard payload.count == 4 else { return }
             let index = payload.reduce(Int32(0)) { $0 << 8 | Int32($1) }
             playerPeers[Int(index)] = peer
+        case .claim:
+            // From another device: exactly one byte, 0 or 1.
+            guard payload.count == 1, let flag = payload.first, flag <= 1, peers.contains(peer) else { return }
+            claims[peer] = flag == 1
+            onChange?()
         case .closed:
             guard let link = links.removeValue(forKey: key) else { return }
             link.isClosed = true
@@ -94,6 +128,8 @@ public final class MeshLink {
     /// A device left the round or lost its connection: all its connections close.
     public func disconnected(_ peer: Peer) {
         peers.removeAll { $0 == peer }
+        claims[peer] = nil
+        defer { onChange?() }
         for key in links.keys where key.peer == peer {
             guard let link = links.removeValue(forKey: key) else { continue }
             link.isClosed = true

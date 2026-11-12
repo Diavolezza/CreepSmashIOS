@@ -17,6 +17,15 @@ private final class FakeMesh {
         }
     }
 
+    /// A device joins the round later (more players found); the others must be told with `add(peer:)`.
+    func join(_ peer: MeshLink.Peer) -> MeshLink {
+        let link = MeshLink(me: peer, peers: Array(links.keys) + [peer]) { [unowned self] data, targets in
+            for target in targets { self.queue.append((self.now + self.latency, peer, target, data)) }
+        }
+        links[peer] = link
+        return link
+    }
+
     /// A device leaves the round; the others notice it after the delay (data nil).
     func drop(_ peer: MeshLink.Peer) {
         links[peer] = nil
@@ -37,6 +46,50 @@ final class MeshLinkTests: XCTestCase {
     func testEveryDeviceChoosesTheSameHost() {
         let mesh = FakeMesh(peers: ["G3", "G1", "G2"])
         XCTAssertEqual(Set(mesh.links.values.map(\.host)), ["G1"])
+    }
+
+    func testTheDeviceThatClaimsTheRoundOpensIt() {
+        let mesh = FakeMesh(peers: ["G3", "G1", "G2"], latency: 1)
+        for (peer, link) in mesh.links { link.claimHost(peer == "G3") }   // G3 invited the others
+        XCTAssertTrue(mesh.links.values.allSatisfy { $0.electedHost == nil }, "answers are missing")
+        mesh.now += 1; mesh.deliver()
+        XCTAssertEqual(Set(mesh.links.values.compactMap(\.electedHost)), ["G3"])
+        XCTAssertEqual(mesh.links.values.compactMap(\.electedHost).count, 3)
+    }
+
+    func testWithoutAClaimTheSmallestIDOpensTheRound() {
+        let mesh = FakeMesh(peers: ["G3", "G1", "G2"], latency: 1)
+        for link in mesh.links.values { link.claimHost(false) }
+        mesh.now += 1; mesh.deliver()
+        XCTAssertEqual(Set(mesh.links.values.compactMap(\.electedHost)), ["G1"])
+    }
+
+    func testALaterDeviceLearnsWhoOpenedTheRound() {
+        let mesh = FakeMesh(peers: ["G3", "G2"], latency: 1)
+        for link in mesh.links.values { link.claimHost(false) }
+        mesh.now += 1; mesh.deliver()
+        XCTAssertEqual(mesh.links["G3"]!.electedHost, "G2")
+        mesh.links["G2"]!.claimHost(true)                   // the host keeps the round when more devices join
+        mesh.now += 1; mesh.deliver()
+        // G1 joins later: smaller ID, but the round is G2's.
+        let late = mesh.join("G1")
+        late.claimHost(false)
+        for peer in ["G2", "G3"] { mesh.links[peer]!.add(peer: "G1") }
+        mesh.now += 1; mesh.deliver()
+        XCTAssertEqual(late.electedHost, "G2")
+        XCTAssertEqual(mesh.links["G3"]!.electedHost, "G2")
+    }
+
+    func testABrokenClaimIsIgnored() {
+        let mesh = FakeMesh(peers: ["A", "B"], latency: 1)
+        let a = mesh.links["A"]!
+        a.claimHost(false)
+        a.received(Data([0, 3, 7]), from: "B")              // neither 0 nor 1
+        a.received(Data([0, 3, 1, 1]), from: "B")           // too long
+        a.received(Data([0, 3, 1]), from: "X")              // not in the round
+        XCTAssertNil(a.electedHost)
+        a.received(Data([0, 3, 1]), from: "B")
+        XCTAssertEqual(a.electedHost, "B")
     }
 
     func testMessagesGoToTheRightConnectionAndClosingIsReported() {

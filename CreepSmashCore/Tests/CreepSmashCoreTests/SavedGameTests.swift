@@ -37,7 +37,7 @@ final class SavedGameTests: XCTestCase {
         let match = LocalMatch(map: .blue, playerName: "A", seed: 1)
         play(match, ticks: 200)
         var json = try XCTUnwrap(String(data: JSONEncoder().encode(match.saved), encoding: .utf8))
-        json = json.replacingOccurrences(of: "\"version\":\(NetMessage.protocolVersion)", with: "\"version\":1")
+        json = json.replacingOccurrences(of: "\"version\":\(NetMessage.simulationVersion)", with: "\"version\":1")
         let old = try JSONDecoder().decode(SavedGame.self, from: Data(json.utf8))
         XCTAssertFalse(old.canContinue)
         XCTAssertNil(LocalMatch(restoring: old))

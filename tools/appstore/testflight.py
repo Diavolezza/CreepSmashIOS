@@ -22,19 +22,21 @@ DESCRIPTION = {
              "des Online-Spiels über Game Center.",
 }
 WHATS_NEW = {
-    "en-US": "Online play through Game Center: Multiplayer → Game Center, invite a friend or find a random opponent "
-             "and play a round. Afterwards please tap \"Send log\" in the options and email the log to "
-             f"{FEEDBACK}.",
-    "de-DE": "Online-Spiel über Game Center: Mehrspieler → Game Center, einen Freund einladen oder einen zufälligen "
-             "Gegner suchen und eine Runde spielen. Bitte danach in den Optionen auf „Protokoll senden“ tippen und "
-             f"das Protokoll per Mail an {FEEDBACK} schicken.",
+    "en-US": "Version 1.1 test: Multiplayer → Online – invite friends, random opponents (Game Center looks for "
+             "30 seconds, computers take the free seats) or share a code (iOS 26). After a game: Rematch. "
+             "New players see a short introduction. Afterwards please tap \"Send log\" in the options and email "
+             f"the log to {FEEDBACK}.",
+    "de-DE": "Test der Version 1.1: Mehrspieler → Online – Freunde einladen, zufällige Gegner (Game Center sucht "
+             "30 Sekunden, freie Plätze übernehmen Computer) oder Code teilen (iOS 26). Nach dem Spiel: Revanche. "
+             "Neue Spieler sehen eine Kurzanleitung. Bitte danach in den Optionen auf „Protokoll senden“ tippen "
+             f"und das Protokoll per Mail an {FEEDBACK} schicken.",
 }
 REVIEW_NOTES = (
     "This test build is for testing online play through Game Center with a few testers. No account or login of "
-    "the app is needed. Online play: sign in to Game Center, then Multiplayer > Game Center, invite a friend or "
-    "find a random opponent. A game against the computer (Vs. computer) needs no second device. Test builds "
-    "record the connection during online games in a local file; the tester can send it on purpose with "
-    "\"Send log\" in the options (share sheet). Nothing is sent automatically."
+    "the app is needed. Online play: sign in to Game Center, then Multiplayer > Online: invite friends, find "
+    "random opponents or share a code (iOS 26). A game against the computer (Vs. computer) needs no second "
+    "device. Test builds record the connection during online games in a local file; the tester can send it on "
+    "purpose with \"Send log\" in the options (share sheet). Nothing is sent automatically."
 )
 
 

@@ -11,8 +11,8 @@ public struct SavedGame: Codable, Equatable, Sendable {
         public let command: Command
     }
 
-    /// Simulation version the game was played with (`NetMessage.protocolVersion`); another version
-    /// would compute differently, so such a game cannot be continued.
+    /// Simulation version the game was played with (`NetMessage.simulationVersion`, up to protocol 7 the
+    /// same number as the protocol); another version would compute differently, so such a game cannot be continued.
     public let version: Int
     public let mapID: String
     public let rules: Rules
@@ -29,7 +29,7 @@ public struct SavedGame: Codable, Equatable, Sendable {
     /// The game can be continued with this version of the app.
     /// (The file could be damaged: its rules and opponents are checked too.)
     public var canContinue: Bool {
-        version == NetMessage.protocolVersion && GameMap.named(mapID) != nil && rules.isPlausible
+        version == NetMessage.simulationVersion && GameMap.named(mapID) != nil && rules.isPlausible
             && (1...3).contains(opponents.count) && (opponentNames.map { $0.count == opponents.count } ?? true)
     }
 }

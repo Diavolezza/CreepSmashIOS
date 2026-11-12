@@ -126,7 +126,7 @@ challenges = [dict(id=m[0], board=m[1], en=m[2].strip(), en_desc=m[3].strip(), d
 activities = [dict(id=m[0], en=m[1].strip(), en_desc=m[2].strip(), de=m[3].strip(), de_desc=m[4].strip(), image=m[5])
               for m in re.findall(r"\| `(cs\.activity\.[\w.]+)` \| ([^|]+) \| ([^|]+) \| ([^|]+) \| ([^|]+) \| ([\w.-]+\.png) \|", doc)]
 FALLBACK_URL = re.search(r"Fallback URL \(systems before iOS 26\): (\S+?)\.? Every", doc).group(1)
-assert len(boards) == 9 and len(achievements) == 39 and len(challenges) == 9 and len(activities) == 1, \
+assert len(boards) == 9 and len(achievements) == 39 and len(challenges) == 9 and len(activities) == 2, \
     (len(boards), len(achievements), len(challenges), len(activities))
 missing_images = [x["image"] for x in boards + achievements + challenges + activities if not (IMAGES / x["image"]).exists()]
 if missing_images:
@@ -270,12 +270,17 @@ def version_with_texts(kind, parent_rel, parent_type, parent_id, versions_path, 
 
 
 for a in activities:
+    # cs.activity.online: online rounds with a party code, 2 to 4 people; the others: one player.
+    online = a["id"] == "cs.activity.online"
     act = existing_activities.get(a["id"]) or call("POST", "/v1/gameCenterActivities", {"data": {"type": "gameCenterActivities",
-          "attributes": {"referenceName": a["en"], "vendorIdentifier": a["id"], "minimumPlayersCount": 1,
-                         "maximumPlayersCount": 1, "supportsPartyCode": False},
+          "attributes": {"referenceName": a["en"], "vendorIdentifier": a["id"], "minimumPlayersCount": 2 if online else 1,
+                         "maximumPlayersCount": 4 if online else 1, "supportsPartyCode": online},
           "relationships": {"gameCenterDetail": {"data": {"type": "gameCenterDetails", "id": detail["id"]}}}}})["data"]
     version_with_texts("gameCenterActivity", "activity", "gameCenterActivities", act["id"],
                        f"/v1/gameCenterActivities/{act['id']}/versions", a, a["image"], {"fallbackUrl": FALLBACK_URL})
+    if online:
+        print(f"✓ activity {a['id']} (party code, 2–4 players)")
+        continue
     for b in boards:
         lb = existing_boards[b["id"]]
         _, level, opponents = b["id"].rsplit(".", 2)

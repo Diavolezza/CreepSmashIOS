@@ -12,6 +12,8 @@ final class Matchmaker {
         case searchingQuick
         /// Looking for the round with this code.
         case joining(code: String)
+        /// Game Center looks for players (random opponents, the round of a code).
+        case searchingOnline(OnlineKind)
         /// Connected, settings are being negotiated.
         case connecting
         /// In a lobby (own round or as a guest), see `lobby`.
@@ -28,6 +30,10 @@ final class Matchmaker {
         var you: Int
         var isHost: Bool
         var canStart: Bool
+        /// A Game Center round (nil: nearby).
+        var online: OnlineKind? = nil
+        /// Random opponents: the round starts by itself at this moment.
+        var startsAt: Date? = nil
     }
 
     private(set) var state: State = .idle
@@ -52,6 +58,10 @@ final class Matchmaker {
     @ObservationIgnored private var gameCenterSession: GameCenterSession?
     @ObservationIgnored private var code = ""
     @ObservationIgnored private var playerName = ""
+    /// Kind of the Game Center round being set up (nil: nearby).
+    @ObservationIgnored private var onlineKind: OnlineKind?
+    /// Random opponents: when the host starts the round by itself.
+    @ObservationIgnored private var startsAt: Date?
 
     /// Characters that cannot be confused (no 0/O, 1/I).
     nonisolated static let codeAlphabet = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
@@ -104,11 +114,12 @@ final class Matchmaker {
         nearby?.join(code: code)
     }
 
-    /// Online round through Game Center: the players found each other there. The device with the smallest
-    /// player ID opens the round with a randomly drawn map; it starts as soon as everyone is in.
+    /// Online round through Game Center: the players found each other there. The inviter or the creator of the
+    /// code opens the round (otherwise the device with the smallest player ID); all see its lobby.
     func gameCenter(_ session: GameCenterSession, name: String) {
-        cancel()
+        reset()
         playerName = name
+        onlineKind = session.kind
         state = .connecting
         gameCenterSession = session
         session.onFailure = { [weak self] message in self?.failed(message) }
@@ -116,7 +127,25 @@ final class Matchmaker {
         session.begin()
     }
 
+    /// Game Center looks for players (shown with a cancel button).
+    func searchingOnline(_ kind: OnlineKind) {
+        reset()
+        onlineKind = kind
+        state = .searchingOnline(kind)
+    }
+
+    /// The Game Center search failed.
+    func onlineFailed(_ message: String) {
+        failed(message)
+    }
+
+    /// Cancel by the player: also stops a Game Center search.
     func cancel() {
+        GameCenter.shared.endOnlineRound()
+        reset()
+    }
+
+    private func reset() {
         gameCenterSession?.disconnect()
         gameCenterSession = nil
         nearby?.stop()
@@ -126,6 +155,8 @@ final class Matchmaker {
         guestLobby?.leave()
         guestLobby = nil
         lobby = nil
+        onlineKind = nil
+        startsAt = nil
         state = .idle
         detail = ""
         versionNotice = nil
@@ -168,8 +199,22 @@ final class Matchmaker {
         hostLobby?.setComputer(seat: seat, level: level)
     }
 
+    func setMap(_ id: String) {
+        hostLobby?.setMap(id)
+    }
+
     func startRound() {
+        if onlineKind == .random { return startRandomRound() }
         hostLobby?.start()
+    }
+
+    /// Random opponents: the free seats get computers, then the round starts.
+    private func startRandomRound() {
+        guard let hostLobby, onlineKind == .random else { return }
+        for seat in hostLobby.seats.indices where hostLobby.seats[seat] == .open {
+            hostLobby.setComputer(seat: seat, level: .normal)
+        }
+        hostLobby.start()
     }
 
     // MARK: - Internal
@@ -194,6 +239,9 @@ final class Matchmaker {
     }
 
     private func failed(_ message: String) {
+        GameCenter.shared.endOnlineRound()
+        onlineKind = nil
+        startsAt = nil
         gameCenterSession?.disconnect()
         gameCenterSession = nil
         nearby?.stop()
@@ -266,26 +314,59 @@ final class Matchmaker {
     }
 
     private func gameCenterReady(_ link: MeshLink) {
-        guard link.host == link.me else {
-            return joinLobby(over: link.transport(to: link.host), showsLobby: false)
+        guard let session = gameCenterSession else { return }
+        let host = link.electedHost ?? link.host
+        guard host == link.me else {
+            return joinLobby(over: link.transport(to: host), showsLobby: true)
         }
+        let kind = session.kind
+        let mapID = kind.mapID.flatMap { GameMap.named($0)?.id } ?? GameMap.all.randomElement()!.id
         // The code only names the round for a handover; Game Center rounds are not listed nearby.
-        let lobby = HostLobby(mapID: GameMap.all.randomElement()!.id, name: playerName, seats: link.peers.count + 1,
-                              code: Self.makeCode())
-        lobby.startsWhenFull = true
+        code = Self.makeCode()
+        let lobby = HostLobby(mapID: mapID, name: playerName, seats: 4, code: code)
+        lobby.onChange = { [weak self] in
+            MainActor.assumeIsolated { self?.hostLobbyChanged() }
+        }
         lobby.onStart = { [weak self] match in
             MainActor.assumeIsolated { self?.started(match) }
         }
         hostLobby = lobby
+        state = .lobby
+        // Players Game Center finds later (random opponents, code) join this lobby.
+        session.onPeerAdded = { [weak lobby] peer in lobby?.add(link.transport(to: peer)) }
+        switch kind {
+        case .random:
+            // Game Center looks for more for a while; then the free seats get computers and the round starts.
+            session.keepRound()
+            GameCenter.shared.addPlayers(to: session)
+            let at = Date().addingTimeInterval(GameCenter.searchTime)
+            startsAt = at
+            Task { [weak self, weak lobby] in
+                try? await Task.sleep(for: .seconds(GameCenter.searchTime))
+                guard let self, let lobby, self.hostLobby === lobby, self.startsAt == at else { return }
+                self.startRandomRound()
+            }
+        case .party:
+            session.keepRound()
+            GameCenter.shared.addPlayers(to: session)
+        case .invite:
+            break
+        }
+        hostLobbyChanged()
         for peer in link.peers.sorted() { lobby.add(link.transport(to: peer)) }
     }
 
     private func hostLobbyChanged() {
         guard let hostLobby else { return }
         lobby = Lobby(code: code, mapID: hostLobby.mapID, seats: hostLobby.seats, you: 0, isHost: true,
-                      canStart: hostLobby.canStart)
+                      canStart: hostLobby.canStart, online: onlineKind, startsAt: startsAt)
         nearby?.update(info: info(of: hostLobby))
         let people = hostLobby.seats.filter { if case .human = $0 { true } else { false } }.count
+        // Random opponents: four people found – no need to wait any longer.
+        if onlineKind == .random && people == hostLobby.seats.count {
+            hostLobby.start()
+            return
+        }
         if let wanted = autoStartPeople, people >= wanted {
             autoStartPeople = nil
             if let level = autoStartComputers {
@@ -299,7 +380,8 @@ final class Matchmaker {
 
     private func guestLobbyChanged() {
         guard let info = guestLobby?.info else { return }
-        lobby = Lobby(code: code, mapID: info.mapID, seats: info.seats, you: info.you, isHost: false, canStart: false)
+        lobby = Lobby(code: code, mapID: info.mapID, seats: info.seats, you: info.you, isHost: false, canStart: false,
+                      online: onlineKind)
         state = .lobby
     }
 
@@ -311,6 +393,10 @@ final class Matchmaker {
     private func started(_ match: NetworkMatch) {
         let session = gameCenterSession
         gameCenterSession = nil
+        // No more players are looked for; a code round's activity ends with the game.
+        if let session { GameCenter.shared.cancelSearch(session) }
+        onlineKind = nil
+        startsAt = nil
         nearby?.stop()
         nearby = nil
         hostLobby = nil

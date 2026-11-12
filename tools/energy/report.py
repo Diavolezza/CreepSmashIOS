@@ -27,7 +27,7 @@ def num(v):
 label = sys.argv[1] if len(sys.argv) > 1 else "before"
 D = f"build/energy/{label}"
 SKIP = 8e9  # ignore the first 8 s (launch)
-for scene in ("menu", "menu-music", "duel", "four"):
+for scene in ("menu", "menu-music", "duel", "four", "local", "online", "online2", "online4"):
     p = f"{D}/{scene}.SystemPowerLevel.xml"
     if not os.path.exists(p): continue
     sp = [r for r in rows(p) if num(r["start"]) and num(r["start"]) > SKIP]

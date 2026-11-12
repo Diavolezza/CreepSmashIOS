@@ -20,6 +20,8 @@ struct MenuView: View {
     /// An interrupted game against the computer that can be continued.
     @State private var savedGame = SavedGameStore.load()
     @State private var showRules = false
+    /// The short introduction (first start).
+    @State private var showTour = false
     @State private var showSetup = false
     /// Number of computer opponents (1–3), as on the setup page.
     @AppStorage("opponents") private var opponents = 1
@@ -89,12 +91,18 @@ struct MenuView: View {
         }
         .fullScreenCover(isPresented: $showRecords) { HallOfFameView() }
         .sheet(isPresented: $showRules) { RulesView() }
+        .fullScreenCover(isPresented: $showTour) { TourView() }
         .sheet(isPresented: $showCredits) { CreditsView() }
         // Launch arguments "-credits" and "-setup" open those pages (screenshots).
         .onAppear {
             let arguments = ProcessInfo.processInfo.arguments
             if arguments.contains("-credits") { showCredits = true }
             if arguments.contains("-setup") { showSetup = true }
+            // First start: the short introduction ("-tour" shows it again, for screenshots).
+            if arguments.contains("-tour")
+                || (!UserDefaults.standard.bool(forKey: TourView.seenKey) && !TourView.suppressedByLaunchArguments) {
+                showTour = true
+            }
             openRequestedSetup()
         }
         // A game asked for from the Games app or a challenge (also one that came during a game: when it ends).
@@ -328,6 +336,7 @@ extension MapFeature {
 
 struct RulesView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var showTour = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -336,6 +345,8 @@ struct RulesView: View {
                 .padding(.vertical, Theme.s(10))
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.s(14)) {
+                    Button(L("Short introduction")) { showTour = true }
+                        .buttonStyle(MenuButtonStyle(minWidth: 0, shrinks: false))
                     section(L("Goal"), L("Each player has 20 lives. The last player with lives left wins."))
                     section(L("Money"), L("You start with 500 credits. Every 10 seconds your income is added to your credits (200 at the start)."))
                     section(L("Attack"), L("Send creeps to your opponent's board. Every creep you send raises your income for good. If a creep reaches the end of the path, your opponent loses a life – and the creep starts again from the beginning."))
@@ -358,6 +369,7 @@ struct RulesView: View {
         .background(Theme.background.ignoresSafeArea())
         .preferredColorScheme(.dark)
         .pageSizedSheet()
+        .fullScreenCover(isPresented: $showTour) { TourView() }
     }
 
     private func section(_ title: String, _ text: String) -> some View {

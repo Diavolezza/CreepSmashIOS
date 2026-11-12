@@ -344,6 +344,19 @@ struct GameScreen: View {
                 .shadow(color: .black, radius: 4)
                 .allowsHitTesting(false)
             }
+            if controller.weakConnection, !controller.isWaitingForOpponent, controller.connectionProblem == nil,
+               !controller.game.isFinished {
+                VStack {
+                    Label(L("Slow connection – the game may stall now and then"), systemImage: "wifi.exclamationmark")
+                        .font(Theme.mono(13, .semibold))
+                        .foregroundStyle(Theme.gold)
+                        .padding(.horizontal, Theme.s(12)).padding(.vertical, Theme.s(6))
+                        .background(Capsule().fill(Color.black.opacity(0.8)))
+                        .padding(.top, Theme.s(10))
+                    Spacer()
+                }
+                .allowsHitTesting(false)
+            }
             if controller.isWaitingForOpponent, controller.connectionProblem == nil {
                 VStack {
                     Text(L("Waiting for \(controller.waitingNames) …"))
@@ -437,6 +450,25 @@ struct GameScreen: View {
         }
     }
 
+    /// Online: same map, same players, when everybody taps it. Below it, who already wants one.
+    @ViewBuilder private var rematchButton: some View {
+        let rematch = controller.rematch
+        let mine = rematch.votes.contains(controller.me)
+        VStack(spacing: Theme.s(6)) {
+            Button(L("Rematch")) { controller.requestRematch() }
+                .buttonStyle(MenuButtonStyle(fill: true))
+                .disabled(!rematch.possible || mine)
+                .opacity(rematch.possible && !mine ? 1 : 0.4)
+            if !rematch.possible {
+                Text(L("The others have left.")).font(Theme.mono(12)).foregroundStyle(.gray)
+            } else if mine {
+                Text(L("Waiting for the others …")).font(Theme.mono(12)).foregroundStyle(Theme.text)
+            } else if let other = rematch.votes.sorted().first {
+                Text(L("\(controller.displayName(other)) wants a rematch")).font(Theme.mono(12)).foregroundStyle(Theme.green)
+            }
+        }
+    }
+
     /// Final result as a panel over the frozen game – both boards remain visible behind it.
     private func finishedOverlay(rank: Int?) -> some View {
         let won = rank == 1
@@ -499,6 +531,8 @@ struct GameScreen: View {
                 VStack(spacing: Theme.s(12)) {
                     if !controller.isOnline {
                         Button(L("Play again")) { onRestart() }.buttonStyle(MenuButtonStyle(fill: true))
+                    } else if controller.game.isFinished {
+                        rematchButton
                     }
                     if controller.summary != nil {
                         Button(L("Evaluation")) { withoutSliding { showReport = true } }

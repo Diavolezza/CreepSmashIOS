@@ -106,6 +106,11 @@ activity = {"id": "cs.activity.computer", "title_en": "Vs. computer", "title_de"
             "desc_en": "Beat one to three computers as fast as you can.",
             "desc_de": "Schlag einen bis drei Computer, so schnell du kannst.",
             "image": "activity-computer.png", "fallback": "https://diavolezza.github.io/creepsmash/support.html"}
+# Activity for online rounds with a code (version 1.1): 2 to 4 people, Game Center party code.
+online = {"id": "cs.activity.online", "title_en": "Online round", "title_de": "Online-Runde",
+          "desc_en": "Two to four people in one round – share its code with your friends.",
+          "desc_de": "Zwei bis vier Leute in einer Runde – teile ihren Code mit deinen Freunden.",
+          "image": "activity-online.png"}
 
 doc = [
     "# Game Center – configuration for App Store Connect",
@@ -144,9 +149,9 @@ doc = [
 ] + [f"| `{c['id']}` | `{c['board']}` | {c['title_en']} | {c['desc_en']} | {c['title_de']} | {c['desc_de']} | {c['image']} |"
      for c in challenges] + [
     "",
-    "## Activity (1)",
+    "## Activities (2)",
     "",
-    "Opens a game against the computer from the Games app or from a challenge. 1 player, no party code.",
+    f"`{activity['id']}` opens a game against the computer from the Games app or from a challenge. 1 player, no party code.",
     f"Fallback URL (systems before iOS 26): {activity['fallback']}. Every leaderboard links to it with the",
     "properties `level` (easy, normal, hard) and `opponents` (1–3); the app opens the setup page with them.",
     "Image 3840 × 2160.",
@@ -154,6 +159,10 @@ doc = [
     "| ID | Name (en) | Description (en) | Name (de) | Description (de) | Image |",
     "|---|---|---|---|---|---|",
     f"| `{activity['id']}` | {activity['title_en']} | {activity['desc_en']} | {activity['title_de']} | {activity['desc_de']} | {activity['image']} |",
+    f"| `{online['id']}` | {online['title_en']} | {online['desc_en']} | {online['title_de']} | {online['desc_de']} | {online['image']} |",
+    "",
+    f"`{online['id']}` (from version 1.1): online rounds with a code – 2 to 4 players, party code. The creator of the",
+    "code opens the round in the app; the others enter the code there (or follow the party link).",
 ] + [
     "",
     f"## Achievements ({len(rows)}, {total} points of max. 1000)",
@@ -166,11 +175,11 @@ doc = [
     "|---|---:|---|---|---|---|---|",
 ] + [f"| `{r['id']}` | {r['points']} | {r['title_en']} | {r['desc_en']} | {r['title_de']} | {r['desc_de']} | {r['image']} |"
      for r in rows]
-too_long = [t for x in boards + rows + challenges + [activity] for k, t in x.items() if (k.startswith("title") and len(t) > 30) or (k.startswith("desc") and len(t) > 200)]
+too_long = [t for x in boards + rows + challenges + [activity, online] for k, t in x.items() if (k.startswith("title") and len(t) > 30) or (k.startswith("desc") and len(t) > 200)]
 if too_long:
     sys.exit(f"** too long for Game Center (names 30, descriptions 200): {too_long}")
 (ROOT / "docs/appstore/game-center.md").write_text("\n".join(doc) + "\n")
-print(f"{len(boards)} leaderboards, {len(rows)} achievements ({total} points), {len(challenges)} challenges, 1 activity"
+print(f"{len(boards)} leaderboards, {len(rows)} achievements ({total} points), {len(challenges)} challenges, 2 activities"
       " → docs/appstore/game-center.md")
 if total > 1000:
     sys.exit("** more than 1000 points **")
@@ -400,4 +409,23 @@ img = wide_ground("activity")
 for k, (raw, _, _) in enumerate(levels):
     img = wide_glow(img, big_stopwatch(int(W * 0.74) + (k - 1) * 620, 900, 280), LEVEL[raw], 26)
 img.convert("RGB").save(OUT / activity["image"])
-print(f"{len(rows) + len(boards) + len(challenges) + 1} images → {OUT.relative_to(ROOT)}")
+
+# The online activity: four players around a host, connected (on the right, like the others).
+img = wide_ground("activity-online")
+hub = (int(W * 0.74), 860)
+spots = [(hub[0] - 560, hub[1] - 330), (hub[0] + 560, hub[1] - 330), (hub[0] - 560, hub[1] + 330), (hub[0] + 560, hub[1] + 330)]
+
+
+def star(d, c, w):
+    for x, y in spots:
+        # The lines end at the circles.
+        dx, dy = x - hub[0], y - hub[1]
+        n = (dx * dx + dy * dy) ** 0.5
+        d.line([(hub[0] + dx * 210 / n, hub[1] + dy * 210 / n), (x - dx * 170 / n, y - dy * 170 / n)], fill=c, width=w)
+        d.ellipse((x - 130, y - 130, x + 130, y + 130), outline=c, width=w)
+    d.ellipse((hub[0] - 170, hub[1] - 170, hub[0] + 170, hub[1] + 170), outline=c, width=w)
+
+
+img = wide_glow(img, star, GREEN, 30)
+img.convert("RGB").save(OUT / online["image"])
+print(f"{len(rows) + len(boards) + len(challenges) + 2} images → {OUT.relative_to(ROOT)}")
