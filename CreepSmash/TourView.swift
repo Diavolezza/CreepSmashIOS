@@ -16,7 +16,7 @@ struct TourView: View {
     static var suppressedByLaunchArguments: Bool {
         let arguments = ProcessInfo.processInfo.arguments
         return ["-noTour", "-musicEnabled", "-demo", "-play", "-resume", "-host", "-join", "-quick", "-multiplayer",
-                "-records", "-report", "-setup", "-credits"].contains { arguments.contains($0) }
+                "-records", "-report", "-setup", "-credits", "-rules"].contains { arguments.contains($0) }
     }
 
     private struct Page {

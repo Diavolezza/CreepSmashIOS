@@ -98,6 +98,7 @@ struct MenuView: View {
             let arguments = ProcessInfo.processInfo.arguments
             if arguments.contains("-credits") { showCredits = true }
             if arguments.contains("-setup") { showSetup = true }
+            if arguments.contains("-rules") { showRules = true }
             // First start: the short introduction ("-tour" shows it again, for screenshots).
             if arguments.contains("-tour")
                 || (!UserDefaults.standard.bool(forKey: TourView.seenKey) && !TourView.suppressedByLaunchArguments) {
@@ -345,8 +346,10 @@ struct RulesView: View {
                 .padding(.vertical, Theme.s(10))
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.s(14)) {
-                    Button(L("Short introduction")) { showTour = true }
+                    // The introduction of the first start, again – centered above the rules.
+                    Button(L("Show introduction again")) { showTour = true }
                         .buttonStyle(MenuButtonStyle(minWidth: 0, shrinks: false))
+                        .frame(maxWidth: .infinity)
                     section(L("Goal"), L("Each player has 20 lives. The last player with lives left wins."))
                     section(L("Money"), L("You start with 500 credits. Every 10 seconds your income is added to your credits (200 at the start)."))
                     section(L("Attack"), L("Send creeps to your opponent's board. Every creep you send raises your income for good. If a creep reaches the end of the path, your opponent loses a life – and the creep starts again from the beginning."))

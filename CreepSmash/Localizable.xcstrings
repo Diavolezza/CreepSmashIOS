@@ -1061,7 +1061,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Jeder Spieler hat 20 Leben. Ein Creep, der das Ende deines Wegs erreicht, kostet dich eines. Wer als Letzter noch Leben hat, gewinnt."
+            "value" : "Jeder Spieler hat 20 Leben. Ein Creep, der das Ende deines Pfads erreicht, kostet dich eines. Wer als Letzter noch Leben hat, gewinnt."
           }
         }
       }
@@ -2194,7 +2194,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wähle links einen Turm und tippe auf ein freies Feld neben dem Weg. Türme schießen auf die Creeps auf deinem Feld. Tippe einen Turm an, um ihn aufzurüsten oder zu verkaufen."
+            "value" : "Wähle links einen Turm und tippe auf ein freies Feld neben dem Pfad. Türme schießen auf die Creeps auf deinem Feld. Tippe einen Turm an, um ihn aufzurüsten oder zu verkaufen."
           }
         }
       }
@@ -2583,16 +2583,6 @@
         }
       }
     },
-    "Short introduction" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kurzanleitung"
-          }
-        }
-      }
-    },
     "short path" : {
       "localizations" : {
         "de" : {
@@ -2619,6 +2609,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Schussgeräusche"
+          }
+        }
+      }
+    },
+    "Show introduction again" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einführung erneut anzeigen"
           }
         }
       }
