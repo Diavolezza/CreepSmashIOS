@@ -365,7 +365,7 @@ struct MultiplayerView: View {
         if let code = kind.partyCode, kind.opensRound {
             Text(L("Your code")).font(Theme.mono(14)).foregroundStyle(Theme.text)
             partyCodeText(code)
-            Text(L("Send it to the others; they enter it under „Online“ › „Share a code“."))
+            Text(L("Send it to the others; they enter it under „Multiplayer“ › „Online“ › „Share a code“."))
                 .font(Theme.mono(14)).foregroundStyle(Theme.text)
                 .multilineTextAlignment(.center).frame(maxWidth: Theme.s(440))
             HStack(spacing: Theme.s(8)) {

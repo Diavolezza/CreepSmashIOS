@@ -5,7 +5,9 @@ import CreepSmashCore
 /// be skipped. Later it opens from "How to play" (the "?" in the menu).
 struct TourView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var page = 0
+    /// Screenshots: "-tourPage N" opens page N (from 0).
+    @State private var page = ProcessInfo.processInfo.arguments.firstIndex(of: "-tourPage")
+        .flatMap { i in ProcessInfo.processInfo.arguments.dropFirst(i + 1).first }.flatMap(Int.init).map { min(3, max(0, $0)) } ?? 0
 
     /// Shown once on the first start; set when it is closed (skipped or finished).
     static let seenKey = "tourSeen"
@@ -74,20 +76,29 @@ struct TourView: View {
         dismiss()
     }
 
-    /// Picture on the left, text on the right (landscape); one above the other where it is narrow.
+    /// Picture on the left, text on the right where the screen is wider than high (iPhone in landscape);
+    /// one above the other on a high screen (iPad in portrait). The picture shrinks where it is short of room.
     private func pageView(_ page: Page) -> some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: Theme.s(36)) {
-                page.picture.frame(width: Theme.s(300))
-                text(page).frame(maxWidth: Theme.s(460), alignment: .leading)
+        GeometryReader { geo in
+            let wide = geo.size.width > geo.size.height
+            let pictureSize = min(Theme.s(300), wide ? geo.size.width * 0.38 : geo.size.height * 0.4)
+            Group {
+                if wide {
+                    HStack(spacing: Theme.s(32)) {
+                        page.picture.frame(width: pictureSize, height: min(pictureSize, geo.size.height))
+                            .scaleEffect(min(1, geo.size.height / Theme.s(260)))
+                        text(page).frame(maxWidth: Theme.s(460), alignment: .leading)
+                    }
+                } else {
+                    VStack(spacing: Theme.s(20)) {
+                        page.picture.frame(height: pictureSize)
+                        text(page).frame(maxWidth: Theme.s(460))
+                    }
+                }
             }
-            VStack(spacing: Theme.s(20)) {
-                page.picture
-                text(page).frame(maxWidth: Theme.s(460))
-            }
+            .frame(width: geo.size.width, height: geo.size.height)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.bottom, Theme.s(30))   // room for the page dots
+        .padding(.bottom, Theme.s(36))   // room for the page dots
     }
 
     private func text(_ page: Page) -> some View {

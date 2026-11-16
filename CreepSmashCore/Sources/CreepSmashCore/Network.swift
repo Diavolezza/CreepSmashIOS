@@ -756,9 +756,12 @@ public final class NetworkMatch: Match {
         setup.humans.filter { $0 == localPlayer || (!gone.contains($0) && remoteHumans.contains($0)) }
     }
 
-    /// A rematch is possible: the game is over and at least one other person is still there.
+    /// A rematch is possible: the game is over for this player (finished, or out while computers play on)
+    /// and at least one other person is still there. It starts once all of them want it – so only when
+    /// the game is over for every person; computers that are still playing do not hold it up.
     public var canRematch: Bool {
-        status == .running && migration == nil && game.isFinished && presentHumans.count >= 2
+        status == .running && migration == nil && (game.isFinished || game.players[localPlayer].isDead)
+            && presentHumans.count >= 2
     }
 
     /// The own wish for a rematch; the host starts it once everybody still there wants it.
@@ -771,7 +774,7 @@ public final class NetworkMatch: Match {
     }
 
     private func receivedRematch(_ player: Int, from link: Int) {
-        guard game.isFinished, setup.humans.contains(player), !gone.contains(player) else { return }
+        guard setup.humans.contains(player), !gone.contains(player) else { return }
         if isHost {
             guard player == link else { return }
             rematchVotes.insert(player)
@@ -806,7 +809,8 @@ public final class NetworkMatch: Match {
 
     /// Guest: the host sends the rematch.
     private func receivedRematchWelcome(_ setup: MatchSetup, player: Int, from link: Int) {
-        guard !isHost, link == hostPlayer, game.isFinished, let transport = links[link] else { return }
+        guard !isHost, link == hostPlayer, game.isFinished || game.players[localPlayer].isDead,
+              let transport = links[link] else { return }
         handOverLinks()
         guard let match = NetworkMatch(setup: setup, localPlayer: player, links: [0: transport]) else {
             transport.close()

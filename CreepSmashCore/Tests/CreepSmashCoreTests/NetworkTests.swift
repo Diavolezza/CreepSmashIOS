@@ -828,6 +828,33 @@ final class NetworkTests: XCTestCase {
         assertSameGame([host, cleo], net: net)
     }
 
+    func testARematchStartsWhenAllPeopleAreOutAndOnlyComputersPlayOn() {
+        let net = FakeNetwork(latency: 2)
+        let devices = connect(net, guests: ["Bert"], computers: [.easy, .easy])
+        run(net, devices, frames: 200)
+        var next: [Int: NetworkMatch] = [:]
+        for (i, d) in devices.enumerated() { d.onRematch = { next[i] = $0 } }
+        // Bert is out first and asks at once; Anna is still playing.
+        devices[1].issue(.surrender)
+        run(net, devices, frames: 30)
+        XCTAssertTrue(devices[1].canRematch)
+        XCTAssertFalse(devices[0].canRematch, "Anna still plays")
+        devices[1].requestRematch()
+        run(net, devices, frames: 10)
+        XCTAssertTrue(next.isEmpty)
+        XCTAssertEqual(devices[0].rematchVotes, [1])
+        // Anna is out too; the two computers play on – the rematch does not wait for them.
+        devices[0].issue(.surrender)
+        run(net, devices, frames: 30)
+        XCTAssertFalse(devices[0].game.isFinished)
+        devices[0].requestRematch()
+        settle(net)
+        XCTAssertEqual(next.count, 2)
+        XCTAssertEqual(next[0]!.setup.names, ["Anna", "Bert", "CPU1", "CPU2"])
+        run(net, [next[0]!, next[1]!], frames: 200)
+        assertSameGame([next[0]!, next[1]!], net: net)
+    }
+
     func testNoRematchAlone() {
         let net = FakeNetwork(latency: 2)
         let devices = connect(net, guests: ["Bert"], rules: oneLife())

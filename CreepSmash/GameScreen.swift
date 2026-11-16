@@ -531,7 +531,8 @@ struct GameScreen: View {
                 VStack(spacing: Theme.s(12)) {
                     if !controller.isOnline {
                         Button(L("Play again")) { onRestart() }.buttonStyle(MenuButtonStyle(fill: true))
-                    } else if controller.game.isFinished {
+                    } else if controller.game.isFinished || controller.game.players[controller.me].isDead {
+                        // Also when only computers play on: the rematch starts once every person is out.
                         rematchButton
                     }
                     if controller.summary != nil {

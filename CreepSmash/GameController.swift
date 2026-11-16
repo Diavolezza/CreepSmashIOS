@@ -560,7 +560,7 @@ final class GameController {
         var h = HUD()
         let board = game.players[me]
         h.tick = game.tick
-        if game.isFinished { refreshRematch() }
+        if game.isFinished || game.players[me].isDead { refreshRematch() }
         if game.isFinished || board.isDead {
             h.phase = .finished(rank: board.rank)
         } else if !game.isStarted {

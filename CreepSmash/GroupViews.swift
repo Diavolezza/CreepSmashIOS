@@ -137,10 +137,12 @@ struct OpponentChips: View {
                 let shown = controller.shownOpponent == info.id
                 Button { controller.view(opponent: info.id) } label: {
                     // Name, lives and income where they fit; the target (gold anyway) then drops its
-                    // arrow first, the income only after that.
+                    // arrow first, a long name is shortened next, the income only goes last.
                     ViewThatFits(in: .horizontal) {
                         chip(info, arrow: info.isTarget, income: true)
                         chip(info, arrow: false, income: true)
+                        chip(info, arrow: false, income: true, nameLength: 6)
+                        chip(info, arrow: false, income: true, nameLength: 4)
                         chip(info, arrow: info.isTarget, income: false)
                     }
                     .font(Theme.mono(12, .semibold))
@@ -157,10 +159,10 @@ struct OpponentChips: View {
         }
     }
 
-    private func chip(_ info: GameController.OpponentInfo, arrow: Bool, income: Bool) -> some View {
+    private func chip(_ info: GameController.OpponentInfo, arrow: Bool, income: Bool, nameLength: Int? = nil) -> some View {
         HStack(spacing: Theme.s(4)) {
             if arrow { Image(systemName: "arrowtriangle.right.fill").imageScale(.small) }
-            Text(info.name).lineLimit(1)
+            Text(verbatim: Self.shortened(info.name, to: nameLength)).lineLimit(1)
             if info.isDead {
                 Text(L("Out")).foregroundStyle(Theme.warning)
             } else {
@@ -169,6 +171,12 @@ struct OpponentChips: View {
             }
         }
         .fixedSize()
+    }
+
+    /// "Z3andr0" → "Z3and…" (nil or short enough: unchanged).
+    static func shortened(_ name: String, to length: Int?) -> String {
+        guard let length, name.count > length + 1 else { return name }
+        return String(name.prefix(length)) + "…"
     }
 }
 

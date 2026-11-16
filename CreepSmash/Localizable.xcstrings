@@ -2533,12 +2533,12 @@
         }
       }
     },
-    "Send it to the others; they enter it under „Online“ › „Share a code“." : {
+    "Send it to the others; they enter it under „Multiplayer“ › „Online“ › „Share a code“." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Schick ihn den anderen; sie geben ihn unter „Online“ › „Code teilen“ ein."
+            "value" : "Schick ihn den anderen; sie geben ihn unter „Mehrspieler“ › „Online“ › „Code teilen“ ein."
           }
         }
       }

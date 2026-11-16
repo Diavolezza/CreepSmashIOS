@@ -13,8 +13,21 @@ Two to four players, landscape: your own board and your opponent's board side by
 | `CreepSmash.xcodeproj` | Xcode project (Xcode 16 or later; files in `CreepSmash/` are picked up automatically) |
 | `Config/Info.plist` | Info.plist keys Xcode cannot generate (local network / Bonjour) |
 | `docs/SPEC.md` | Game rules and values from the original, deliberate deviations |
+| `docs/energy.md` | Energy efficiency: what was measured, what was changed and what it brought (running record, rounds 1–3) |
 | `docs/appstore/` | App Store texts (English, German), privacy policy and support page (`web/`), Game Center identifiers |
-| `tools/` | Python scripts that generate the maps, the tower and creep sprites, the sound effects, the music, the logo and the app icon |
+| `tools/` | Python scripts that generate the maps, the tower and creep sprites, the sound effects, the music, the logo and the app icon; App Store and Game Center setup (`appstore/`) |
+| `tools/energy/` | Measurement scripts (Instruments Power Profiler and Time Profiler on the device, report scripts) |
+
+## Energy efficiency
+
+Energy is measured on the device with Instruments; [`docs/energy.md`](docs/energy.md) records what was
+measured, what was changed and what it brought. Round 1: the start screen went from 10.1 % to 2.1 % CPU,
+and the whole iPhone from 5.94 to 5.16 %/h of battery (−13 %) – but in a game, 20 % less CPU for the app
+is only about 4 % less power for the whole phone, because display, radio and the system's base load
+dominate. Round 3: an online game costs about 13 % more than the same game against the computer; bundling
+the packets would have cut this extra to +9 % or +5 %, but the game stalled now and then – so a bundle is
+still sent every tick: game feel comes first. The game itself rates each player's defense in Green IT
+terms after the game (`docs/SPEC.md`, section 7, item 9).
 
 ## Build and run
 
